@@ -13,17 +13,72 @@ import {
   Settings,
   Search,
   Wrench,
-  Bot
+  Bot,
+  Menu
 } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { GlobalSearch } from './GlobalSearch';
 import { useAuth } from '@/contexts/AuthContext';
 import { SettingsDialog } from './SettingsDialog';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 export default function Layout() {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const SidebarContent = () => (
+    <>
+      <div className="flex-shrink-0">
+        {/* Logo */}
+        <div className="p-8 flex justify-center items-center">
+          <Link to="/" className="flex flex-col items-center group cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+            <div className="relative h-16 w-32 flex items-center justify-center">
+              <div className="absolute inset-0 bg-cyan-500 blur-xl opacity-20 group-hover:opacity-50 transition-opacity duration-500 rounded-full"></div>
+              <img 
+                src="/logo-white.png" 
+                alt="Acquarela Logo" 
+                className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 mt-2 tracking-[0.2em] group-hover:text-cyan-400 transition-colors">Suprimentos</span>
+          </Link>
+        </div>
+      </div>
+        
+      <nav className="flex-1 px-4 space-y-2 mt-2 overflow-y-auto scrollbar-hide pb-4">
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/" icon={<Home size={20} />} label="Início" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/inteligencia" icon={<LineChart size={20} />} label="Inteligência" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/colorista" icon={<Bot size={20} />} label="Colorista Virtual" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/projetos" icon={<KanbanSquare size={20} />} label="Projetos" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/fornecedores" icon={<Users size={20} />} label="Fornecedores" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/potenciais" icon={<UserPlus size={20} />} label="Potenciais Fornecedores" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/insumos" icon={<Package size={20} />} label="Insumos" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/manutencoes" icon={<Wrench size={20} />} label="Manutenções" currentPath={location.pathname} /></div>
+        <div onClick={() => setMobileMenuOpen(false)}><NavItem to="/equipe" icon={<Users2 size={20} />} label="Equipe" currentPath={location.pathname} /></div>
+      </nav>
+
+      <div className="flex-shrink-0 p-6 border-t border-white/5 mt-auto">
+        <div className="flex items-center gap-3 mb-6 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }}>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 p-[2px]">
+            <div className="w-full h-full bg-[#0b0f19] rounded-full flex items-center justify-center">
+              <span className="text-sm font-bold text-white">{user?.email?.substring(0, 2).toUpperCase() || 'US'}</span>
+            </div>
+          </div>
+          <div className="overflow-hidden flex-1">
+            <p className="text-sm font-bold text-white truncate group-hover:text-cyan-300 transition-colors">{isAdmin ? 'Administrador' : 'Convidado'}</p>
+            <p className="text-[11px] text-slate-400 truncate">{user?.email || 'Sem e-mail'}</p>
+          </div>
+          <Settings size={16} className="text-slate-500 group-hover:text-white transition-colors" />
+        </div>
+        <button onClick={signOut} className="flex items-center justify-center gap-2 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-300 w-full p-3 rounded-xl transition-all border border-transparent hover:border-red-500/20">
+          <LogOut size={16} />
+          Sair do Sistema
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="flex h-screen w-full bg-[#0b0f19] font-sans text-slate-200 overflow-hidden relative selection:bg-cyan-500/30">
@@ -32,66 +87,35 @@ export default function Layout() {
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
 
-      {/* Sidebar */}
-      <aside className="w-[280px] bg-white/[0.02] border-r border-white/10 flex flex-col hidden md:flex h-full flex-shrink-0 backdrop-blur-xl relative z-20">
-        <div className="flex-shrink-0">
-          {/* Logo */}
-          <div className="p-8 flex justify-center items-center">
-            <Link to="/" className="flex flex-col items-center group cursor-pointer">
-              <div className="relative h-16 w-32 flex items-center justify-center">
-                <div className="absolute inset-0 bg-cyan-500 blur-xl opacity-20 group-hover:opacity-50 transition-opacity duration-500 rounded-full"></div>
-                <img 
-                  src="/logo-white.png" 
-                  alt="Acquarela Logo" 
-                  className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:scale-105"
-                />
-              </div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 mt-2 tracking-[0.2em] group-hover:text-cyan-400 transition-colors">Suprimentos</span>
-            </Link>
-          </div>
-        </div>
-          
-        <nav className="flex-1 px-4 space-y-2 mt-2 overflow-y-auto scrollbar-hide pb-4">
-          <NavItem to="/" icon={<Home size={20} />} label="Início" currentPath={location.pathname} />
-          <NavItem to="/inteligencia" icon={<LineChart size={20} />} label="Inteligência" currentPath={location.pathname} />
-          <NavItem to="/colorista" icon={<Bot size={20} />} label="Colorista Virtual" currentPath={location.pathname} />
-          <NavItem to="/projetos" icon={<KanbanSquare size={20} />} label="Projetos" currentPath={location.pathname} />
-          <NavItem to="/fornecedores" icon={<Users size={20} />} label="Fornecedores" currentPath={location.pathname} />
-          <NavItem to="/potenciais" icon={<UserPlus size={20} />} label="Potenciais Fornecedores" currentPath={location.pathname} />
-          <NavItem to="/insumos" icon={<Package size={20} />} label="Insumos" currentPath={location.pathname} />
-          <NavItem to="/manutencoes" icon={<Wrench size={20} />} label="Manutenções" currentPath={location.pathname} />
-          <NavItem to="/equipe" icon={<Users2 size={20} />} label="Equipe" currentPath={location.pathname} />
-        </nav>
-
-        <div className="flex-shrink-0 p-6 border-t border-white/5 mt-auto">
-          <div className="flex items-center gap-3 mb-6 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setSettingsOpen(true)}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 p-[2px]">
-              <div className="w-full h-full bg-[#0b0f19] rounded-full flex items-center justify-center">
-                <span className="text-sm font-bold text-white">{user?.email?.substring(0, 2).toUpperCase() || 'US'}</span>
-              </div>
-            </div>
-            <div className="overflow-hidden flex-1">
-              <p className="text-sm font-bold text-white truncate group-hover:text-cyan-300 transition-colors">{isAdmin ? 'Administrador' : 'Convidado'}</p>
-              <p className="text-[11px] text-slate-400 truncate">{user?.email || 'Sem e-mail'}</p>
-            </div>
-            <Settings size={16} className="text-slate-500 group-hover:text-white transition-colors" />
-          </div>
-          <button onClick={signOut} className="flex items-center justify-center gap-2 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-300 w-full p-3 rounded-xl transition-all border border-transparent hover:border-red-500/20">
-            <LogOut size={16} />
-            Sair do Sistema
-          </button>
-        </div>
+      {/* Desktop Sidebar */}
+      <aside className="w-[280px] bg-white/[0.02] border-r border-white/10 hidden md:flex flex-col h-full flex-shrink-0 backdrop-blur-xl relative z-20">
+        <SidebarContent />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative z-10 h-full overflow-hidden">
         
         {/* Header */}
-        <header className="flex-shrink-0 flex justify-between items-center px-10 py-6 bg-[#0b0f19]/80 backdrop-blur-md z-30 border-b border-white/5">
-          <GlobalSearch />
+        <header className="flex-shrink-0 flex justify-between items-center px-4 md:px-10 py-4 md:py-6 bg-[#0b0f19]/80 backdrop-blur-md z-30 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            {/* Mobile Menu Trigger */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <button className="md:hidden text-slate-400 hover:text-cyan-400 p-2 rounded-lg hover:bg-white/5 transition-all">
+                  <Menu size={24} />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0 bg-[#0b0f19] border-r border-white/10 flex flex-col">
+                <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+
+            <GlobalSearch />
+          </div>
           
-          <div className="flex items-center gap-4 ml-auto">
-            <button onClick={() => setSettingsOpen(true)} className="text-slate-400 hover:text-cyan-400 p-2.5 rounded-full hover:bg-cyan-500/10 transition-all">
+          <div className="flex items-center gap-2 md:gap-4 ml-auto">
+            <button onClick={() => setSettingsOpen(true)} className="text-slate-400 hover:text-cyan-400 p-2 md:p-2.5 rounded-full hover:bg-cyan-500/10 transition-all">
               <Settings size={20} />
             </button>
             <NotificationCenter />
