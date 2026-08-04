@@ -24,11 +24,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { FornecedorDialog } from '@/components/fornecedores/FornecedorDialog';
 import { useFornecedores } from '@/contexts/FornecedorContext';
 import { useNotasFiscais } from '@/contexts/NotaFiscalContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { NotaFiscal } from '@/types';
 import { toast } from 'sonner';
 
 // Componente para a linha expansível da Nota Fiscal
-function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup }: { notaGroup: any, onDeleteItem: (id: string) => void, onDeleteGroup: (group: any) => void }) {
+function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup, isAdmin }: { notaGroup: any, onDeleteItem: (id: string) => void, onDeleteGroup: (group: any) => void, isAdmin: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -49,13 +50,15 @@ function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup }: { notaGroup: any, o
             {notaGroup.itens.length} {notaGroup.itens.length === 1 ? 'item' : 'itens'}
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-          <button 
-            onClick={() => onDeleteGroup(notaGroup)}
-            className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-white/5"
-            title="Excluir Nota Inteira"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => onDeleteGroup(notaGroup)}
+              className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-white/5"
+              title="Excluir Nota Inteira"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </td>
       </tr>
       <AnimatePresence>
@@ -76,7 +79,7 @@ function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup }: { notaGroup: any, o
                       <th className="pb-2 font-medium text-right">Qtd</th>
                       <th className="pb-2 font-medium text-right">V. Unit</th>
                       <th className="pb-2 font-medium text-right">V. Total</th>
-                      <th className="pb-2 font-medium text-center w-[50px]">Ações</th>
+                      {isAdmin && <th className="pb-2 font-medium text-center w-[50px]">Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -91,15 +94,17 @@ function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup }: { notaGroup: any, o
                         <td className="py-3 text-right font-medium text-blue-400">
                           R$ {(item.quantidade * item.valor_unitario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="py-3 text-center">
-                          <button 
-                            onClick={() => onDeleteItem(item.id)}
-                            className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                            title="Excluir item"
-                          >
-                            <Trash2 className="w-4 h-4 mx-auto" />
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td className="py-3 text-center">
+                            <button 
+                              onClick={() => onDeleteItem(item.id)}
+                              className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                              title="Excluir item"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -116,6 +121,7 @@ function NotaRow({ notaGroup, onDeleteItem, onDeleteGroup }: { notaGroup: any, o
 export default function FornecedorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { fornecedores, deleteFornecedor } = useFornecedores();
   const { fetchNotasByFornecedor, deleteNotaFiscal } = useNotasFiscais();
   
@@ -251,16 +257,18 @@ export default function FornecedorDetailPage() {
             </div>
 
             <div className="flex flex-col gap-4 items-end mt-4 lg:mt-0">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="bg-white/5 border-white/10 hover:bg-white/10 text-white gap-2" onClick={() => setIsEditing(true)}>
-                  <Edit2 className="w-4 h-4" />
-                  Editar
-                </Button>
-                <Button variant="destructive" size="sm" className="bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 gap-2 border border-red-500/20" onClick={() => setIsDeleteDialogOpen(true)}>
-                  <Trash2 className="w-4 h-4" />
-                  Excluir
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="bg-white/5 border-white/10 hover:bg-white/10 text-white gap-2" onClick={() => setIsEditing(true)}>
+                    <Edit2 className="w-4 h-4" />
+                    Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" className="bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 gap-2 border border-red-500/20" onClick={() => setIsDeleteDialogOpen(true)}>
+                    <Trash2 className="w-4 h-4" />
+                    Excluir
+                  </Button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-400 text-right lg:text-left">
                 <div className="flex items-center justify-end lg:justify-start gap-3">
@@ -370,6 +378,7 @@ export default function FornecedorDetailPage() {
                         <NotaRow 
                           key={`${group.numero_nota}-${i}`} 
                           notaGroup={group} 
+                          isAdmin={isAdmin}
                           onDeleteItem={async (id) => {
                             if (window.confirm('Tem certeza que deseja excluir este item da nota fiscal?')) {
                               await deleteNotaFiscal(id);

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Collaborator, ContratacaoType, Pendency, UrgenciaType, Fornecedor, ProjectAttachment } from '@/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/AuthContext';
 import * as XLSX from 'xlsx';
 
 const parseNum = (val: string) => {
@@ -59,6 +60,7 @@ const FilterDropdown = ({ title, options, selected, onChange }: { title: string,
 };
 
 export default function CollaboratorsPage() {
+  const { isAdmin } = useAuth();
   const { collaborators, addCollaborator, updateCollaborator, deleteCollaborator, importCollaborators, deleteAllCollaborators, pendencies, addPendency, updatePendency, deletePendency } = useCollaborators();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -505,9 +507,11 @@ export default function CollaboratorsPage() {
               <DropdownMenuItem onClick={() => openPendencyForm(p)} className="gap-2 cursor-pointer">
                 <Edit2 className="w-4 h-4 text-muted-foreground" /> Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => deletePendency(p.id)} className="gap-2 text-destructive cursor-pointer focus:text-destructive focus:bg-destructive/10">
-                <Trash2 className="w-4 h-4" /> Excluir
-              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => deletePendency(p.id)} className="gap-2 text-destructive cursor-pointer focus:text-destructive focus:bg-destructive/10">
+                  <Trash2 className="w-4 h-4" /> Excluir
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </td>
@@ -552,7 +556,7 @@ export default function CollaboratorsPage() {
           </Button>
           <input type="file" accept=".xlsx, .xls" className="hidden" ref={excelFileInputRef} onChange={handleExcelUpload} />
 
-          {collaborators.length > 0 && (
+          {collaborators.length > 0 && isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="gap-2 px-3 bg-red-600 hover:bg-red-700" title="Apagar Todos">
@@ -640,9 +644,11 @@ export default function CollaboratorsPage() {
                           <DropdownMenuItem onClick={() => openForm(c)} className="gap-2 cursor-pointer">
                             <Edit2 className="w-4 h-4 text-muted-foreground" /> Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => deleteCollaborator(c.id)} className="gap-2 text-destructive cursor-pointer focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="w-4 h-4" /> Excluir
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem onClick={() => deleteCollaborator(c.id)} className="gap-2 text-destructive cursor-pointer focus:text-destructive focus:bg-destructive/10">
+                              <Trash2 className="w-4 h-4" /> Excluir
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -913,6 +919,8 @@ export default function CollaboratorsPage() {
                       onChange={e => setPendPrazo(e.target.value)} 
                       className="bg-background"
                       required
+                      disabled={!isAdmin}
+                      title={!isAdmin ? "Apenas administradores podem definir o prazo" : ""}
                     />
                   </div>
 

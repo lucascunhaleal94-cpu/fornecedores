@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectAttachment, UrgenciaType, ProjectDepartment } from "@/types";
 import { useProjects } from "@/contexts/ProjectContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Dialog, 
   DialogContent, 
@@ -23,6 +24,7 @@ interface ProjectDialogProps {
 }
 
 const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps) => {
+  const { isAdmin } = useAuth();
   const { addProject, updateProject } = useProjects();
 
   const [descricao, setDescricao] = useState("");
@@ -189,6 +191,8 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
               value={prazo} 
               onChange={e => setPrazo(e.target.value)} 
               required 
+              disabled={!isAdmin}
+              title={!isAdmin ? "Apenas administradores podem definir o prazo" : ""}
             />
           </div>
 

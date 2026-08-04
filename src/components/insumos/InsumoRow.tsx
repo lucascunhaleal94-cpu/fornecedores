@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react';
 import { useNotasFiscais } from '@/contexts/NotaFiscalContext';
 import { useFornecedores } from '@/contexts/FornecedorContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function InsumoRow({ insumo }: InsumoRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { isAdmin } = useAuth();
   const { notasFiscais, updateNotaFiscal, deleteNotaFiscal } = useNotasFiscais();
   const { fornecedores } = useFornecedores();
 
@@ -144,13 +146,15 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
             {isExpanded ? 'Ocultar Evolução' : 'Ver Evolução'}
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-          <button 
-            onClick={handleDeleteInsumo} 
-            className="text-slate-500 hover:text-red-400 p-2 rounded-full hover:bg-white/5 transition-colors" 
-            title="Excluir Insumo (Todas as compras)"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={handleDeleteInsumo} 
+              className="text-slate-500 hover:text-red-400 p-2 rounded-full hover:bg-white/5 transition-colors" 
+              title="Excluir Insumo (Todas as compras)"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </td>
       </tr>
       
@@ -229,7 +233,7 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
                                 <th className="py-3 px-4 font-medium text-right">V. Unitário</th>
                                 <th className="py-3 px-4 font-medium text-right">Variação</th>
                                 <th className="py-3 px-4 font-medium w-1/3">Motivo da Variação</th>
-                                <th className="py-3 px-4 font-medium text-center">Ações</th>
+                                {isAdmin && <th className="py-3 px-4 font-medium text-center">Ações</th>}
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -269,22 +273,24 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
                                       }}
                                     />
                                   </td>
-                                  <td className="py-2 px-4 text-center">
-                                    <button 
-                                      onClick={async () => {
-                                        if (window.confirm('Tem certeza que deseja excluir este registro específico de compra do insumo?')) {
-                                          const res = await deleteNotaFiscal(nota.id);
-                                          if (res.success) {
-                                            toast.success('Registro excluído com sucesso!');
+                                  {isAdmin && (
+                                    <td className="py-2 px-4 text-center">
+                                      <button 
+                                        onClick={async () => {
+                                          if (window.confirm('Tem certeza que deseja excluir este registro específico de compra do insumo?')) {
+                                            const res = await deleteNotaFiscal(nota.id);
+                                            if (res.success) {
+                                              toast.success('Registro excluído com sucesso!');
+                                            }
                                           }
-                                        }
-                                      }}
-                                      className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                                      title="Excluir este registro"
-                                    >
-                                      <Trash2 className="w-4 h-4 mx-auto" />
-                                    </button>
-                                  </td>
+                                        }}
+                                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                                        title="Excluir este registro"
+                                      >
+                                        <Trash2 className="w-4 h-4 mx-auto" />
+                                      </button>
+                                    </td>
+                                  )}
                                 </tr>
                               ))}
                             </tbody>

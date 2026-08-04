@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FornecedorDialog } from '@/components/fornecedores/FornecedorDialog';
 import { useFornecedores } from '@/contexts/FornecedorContext';
 import { useNotasFiscais } from '@/contexts/NotaFiscalContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Fornecedor, NotaFiscal } from '@/types';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,7 @@ const normalizeText = (str: string) => {
 
 export default function FornecedoresPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { fornecedores, importFornecedores, deleteFornecedor } = useFornecedores();
   const { notasFiscais, importNotasFiscais, deleteNotaFiscal } = useNotasFiscais();
   const [searchTerm, setSearchTerm] = useState('');
@@ -285,76 +287,80 @@ export default function FornecedoresPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6 shadow-md transition-all hover:shadow-lg gap-2">
-              <Plus className="w-4 h-4" /> Novo Manual
-            </Button>
-            
-            <Button variant="outline" onClick={generateModelFornecedores} className="border-white/10 hover:bg-white/5 bg-transparent text-slate-300 rounded-full px-4 gap-2">
-              <Download className="w-4 h-4" /> B. Modelo (Fornecedores)
-            </Button>
-
-            <Button variant="outline" onClick={generateModelNotas} className="border-white/10 hover:bg-white/5 bg-transparent text-slate-300 rounded-full px-4 gap-2">
-              <Download className="w-4 h-4" /> B. Modelo (Notas)
-            </Button>
-
-            <div>
-              <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleImportFornecedores} />
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent rounded-full px-4 gap-2">
-                <FileUp className="w-4 h-4" /> Importar Fornecedores
-              </Button>
-            </div>
-
-            <div>
-              <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={notasFileInputRef} onChange={handleImportNotas} />
-              <Button variant="outline" onClick={() => notasFileInputRef.current?.click()} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 bg-transparent rounded-full px-4 gap-2">
-                <FileUp className="w-4 h-4" /> Importar Notas
-                <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-0.5 rounded-full ml-1 font-medium border border-blue-500/30">
-                  {totalNotasUnicas}
-                </span>
-              </Button>
-            </div>
-
-            <div>
-              <Button variant="outline" onClick={fixDatabaseDuplicates} disabled={isFixing} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent rounded-full px-4 gap-2">
-                <AlertCircle className="w-4 h-4" /> {isFixing ? 'Limpando...' : 'Corrigir Base de Notas'}
-              </Button>
-            </div>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10 bg-transparent rounded-full px-4 gap-2">
-                  <Trash2 className="w-4 h-4" /> Excluir Fornecedores
+            {isAdmin && (
+              <>
+                <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6 shadow-md transition-all hover:shadow-lg gap-2">
+                  <Plus className="w-4 h-4" /> Novo Manual
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-[#131825] border-white/10 text-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir todos os fornecedores?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-slate-400">Esta ação não pode ser desfeita.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleExcluirTodosFornecedores} className="bg-red-500 hover:bg-red-600">Excluir</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent rounded-full px-4 gap-2">
-                  <Trash2 className="w-4 h-4" /> Excluir Notas
+                
+                <Button variant="outline" onClick={generateModelFornecedores} className="border-white/10 hover:bg-white/5 bg-transparent text-slate-300 rounded-full px-4 gap-2">
+                  <Download className="w-4 h-4" /> B. Modelo (Fornecedores)
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-[#131825] border-white/10 text-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir todas as notas fiscais?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-slate-400">Esta ação não pode ser desfeita.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleExcluirTodasNotas} className="bg-orange-500 hover:bg-orange-600">Excluir</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+
+                <Button variant="outline" onClick={generateModelNotas} className="border-white/10 hover:bg-white/5 bg-transparent text-slate-300 rounded-full px-4 gap-2">
+                  <Download className="w-4 h-4" /> B. Modelo (Notas)
+                </Button>
+
+                <div>
+                  <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleImportFornecedores} />
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent rounded-full px-4 gap-2">
+                    <FileUp className="w-4 h-4" /> Importar Fornecedores
+                  </Button>
+                </div>
+
+                <div>
+                  <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={notasFileInputRef} onChange={handleImportNotas} />
+                  <Button variant="outline" onClick={() => notasFileInputRef.current?.click()} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 bg-transparent rounded-full px-4 gap-2">
+                    <FileUp className="w-4 h-4" /> Importar Notas
+                    <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-0.5 rounded-full ml-1 font-medium border border-blue-500/30">
+                      {totalNotasUnicas}
+                    </span>
+                  </Button>
+                </div>
+
+                <div>
+                  <Button variant="outline" onClick={fixDatabaseDuplicates} disabled={isFixing} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent rounded-full px-4 gap-2">
+                    <AlertCircle className="w-4 h-4" /> {isFixing ? 'Limpando...' : 'Corrigir Base de Notas'}
+                  </Button>
+                </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10 bg-transparent rounded-full px-4 gap-2">
+                      <Trash2 className="w-4 h-4" /> Excluir Fornecedores
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-[#131825] border-white/10 text-white">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir todos os fornecedores?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-slate-400">Esta ação não pode ser desfeita.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleExcluirTodosFornecedores} className="bg-red-500 hover:bg-red-600">Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent rounded-full px-4 gap-2">
+                      <Trash2 className="w-4 h-4" /> Excluir Notas
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-[#131825] border-white/10 text-white">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir todas as notas fiscais?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-slate-400">Esta ação não pode ser desfeita.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleExcluirTodasNotas} className="bg-orange-500 hover:bg-orange-600">Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
         </div>
 

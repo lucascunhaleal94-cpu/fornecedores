@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Project } from "@/types";
 import { useProjects } from "@/contexts/ProjectContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { CalendarIcon, PaperclipIcon, Trash2, MoreHorizontal, Edit2 } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +22,7 @@ interface ProjectCardProps {
 }
 
 const ProjectCard = ({ project }: ProjectCardProps) => {
+  const { isAdmin } = useAuth();
   const { deleteProject } = useProjects();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -78,17 +80,19 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditOpen(true); }} className="cursor-pointer">
                 <Edit2 className="w-4 h-4 mr-2" /> Editar
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm("Deseja realmente remover este projeto?")) {
-                    deleteProject(project.id);
-                  }
-                }} 
-                className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> Excluir
-              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm("Deseja realmente remover este projeto?")) {
+                      deleteProject(project.id);
+                    }
+                  }} 
+                  className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
