@@ -64,8 +64,8 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0f19] relative overflow-hidden">
       {/* Background ambient glows */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none hidden md:block"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none hidden md:block"></div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

@@ -84,8 +84,8 @@ export default function Layout() {
     <div className="flex h-screen w-full bg-[#0b0f19] font-sans text-slate-200 overflow-hidden relative selection:bg-cyan-500/30">
       
       {/* Background ambient glows */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none hidden md:block"></div>
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none hidden md:block"></div>
 
       {/* Desktop Sidebar */}
       <aside className="w-[280px] bg-white/[0.02] border-r border-white/10 hidden md:flex flex-col h-full flex-shrink-0 backdrop-blur-xl relative z-20">
