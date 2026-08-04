@@ -68,24 +68,22 @@ export default function InteligenciaPage() {
         acc[key] = {
           codigo: nota.codigo,
           descricao: nota.descricao,
-          sumUnit: 0,
-          count: 0,
+          totalValue: 0,
           qty: 0
         };
       }
-      acc[key].sumUnit += nota.valor_unitario;
-      acc[key].count += 1;
+      acc[key].totalValue += (nota.valor_unitario * nota.quantidade);
       acc[key].qty += nota.quantidade;
       return acc;
-    }, {} as Record<string, { codigo: string; descricao: string; sumUnit: number; count: number; qty: number }>);
+    }, {} as Record<string, { codigo: string; descricao: string; totalValue: number; qty: number }>);
 
     // Combine and calculate savings
     const result: ProductAnalysis[] = [];
     
     for (const key in currGrouped) {
       const curr = currGrouped[key];
-      const currAvg = curr.sumUnit / curr.count;
       const currQty = curr.qty;
+      const currAvg = currQty > 0 ? (curr.totalValue / currQty) : 0;
       
       let prevAvg = 0;
       let savings = 0;
@@ -110,8 +108,9 @@ export default function InteligenciaPage() {
           return d.getMonth() === latestMonth && d.getFullYear() === latestYear;
         });
 
-        const prevSum = latestMonthNotas.reduce((acc, n) => acc + n.valor_unitario, 0);
-        prevAvg = prevSum / latestMonthNotas.length;
+        const prevTotalValue = latestMonthNotas.reduce((acc, n) => acc + (n.valor_unitario * n.quantidade), 0);
+        const prevTotalQty = latestMonthNotas.reduce((acc, n) => acc + n.quantidade, 0);
+        prevAvg = prevTotalQty > 0 ? (prevTotalValue / prevTotalQty) : 0;
         savings = (prevAvg - currAvg) * currQty;
         
         lastPurchaseDate = format(new Date(latestYear, latestMonth, 1), 'MMMM/yyyy', { locale: ptBR });
