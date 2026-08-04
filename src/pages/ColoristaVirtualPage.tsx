@@ -38,11 +38,6 @@ export default function ColoristaVirtualPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const openai = new OpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-    dangerouslyAllowBrowser: true
-  });
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -88,9 +83,15 @@ export default function ColoristaVirtualPage() {
     setIsLoading(true);
 
     try {
-      if (!import.meta.env.VITE_OPENAI_API_KEY) {
-        throw new Error("Chave da OpenAI (VITE_OPENAI_API_KEY) não encontrada no arquivo .env");
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Chave da OpenAI não configurada. Configure a variável VITE_OPENAI_API_KEY no Vercel.");
       }
+
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
 
       const conversationHistory = messages.filter(m => m.role !== 'system');
       
