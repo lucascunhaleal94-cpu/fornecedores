@@ -36,7 +36,7 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
     setIsDetailsOpen(true);
   };
 
-  const isOverdue = project.status !== 'FINALIZADO' && isBefore(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), startOfDay(new Date()));
+  const isOverdue = project.prazo && project.status !== 'FINALIZADO' && isBefore(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), startOfDay(new Date()));
 
   const getUrgencyColor = (urgencia: string) => {
     switch (urgencia) {
@@ -108,7 +108,7 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
         <div className="flex items-center justify-between text-xs text-slate-400 mt-4 pt-3 border-t border-white/5">
           <div className={`flex items-center ${isOverdue ? 'text-red-500 font-medium' : ''}`}>
             <CalendarIcon className="w-3.5 h-3.5 mr-1" />
-            {format(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
+            {project.prazo ? format(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR }) : 'Sem prazo'}
           </div>
           
           {project.attachments && project.attachments.length > 0 && (

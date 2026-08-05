@@ -55,6 +55,7 @@ const ProjectBoard = ({ filters }: ProjectBoardProps) => {
             }
             
             if (filters.prazo !== "todos") {
+              if (!p.prazo) return false;
               const prazoDate = new Date(p.prazo.substring(0, 10) + 'T12:00:00');
               if (filters.prazo === "atrasados") {
                 return p.status !== 'FINALIZADO' && isBefore(prazoDate, startOfDay(new Date()));
@@ -73,8 +74,8 @@ const ProjectBoard = ({ filters }: ProjectBoardProps) => {
             return true;
           })
           .sort((a, b) => {
-            const dateA = new Date(a.prazo.substring(0, 10) + 'T12:00:00').getTime();
-            const dateB = new Date(b.prazo.substring(0, 10) + 'T12:00:00').getTime();
+            const dateA = a.prazo ? new Date(a.prazo.substring(0, 10) + 'T12:00:00').getTime() : 9999999999999;
+            const dateB = b.prazo ? new Date(b.prazo.substring(0, 10) + 'T12:00:00').getTime() : 9999999999999;
             if (dateA !== dateB) return dateA - dateB;
             
             const urgMap: Record<string, number> = { 'alta': 1, 'media': 2, 'baixa': 3 };

@@ -273,15 +273,11 @@ export default function CollaboratorsPage() {
   );
 
 
-  const availableMonths = Array.from(new Set(pendencies.map(p => {
+  const availableMonths = Array.from(new Set(pendencies.filter(p => p.prazo).map(p => {
     const date = new Date(p.prazo);
+    if (isNaN(date.getTime())) return null;
     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-  }))).sort((a,b) => {
-    const [ma, ya] = a.split('/');
-    const [mb, yb] = b.split('/');
-    if (ya !== yb) return parseInt(ya) - parseInt(yb);
-    return parseInt(ma) - parseInt(mb);
-  });
+  }).filter(Boolean))) as string[];
 
   const filteredPendencies = pendencies.filter(p => {
     if (filterColabs.length > 0 && !p.colaboradoresIds.some(id => filterColabs.includes(id))) return false;
@@ -295,7 +291,7 @@ export default function CollaboratorsPage() {
     if (filterUrgencias.length > 0 && !filterUrgencias.includes(p.urgencia)) return false;
 
     if (filterStatus.length > 0) {
-      const isVencido = !p.concluida && (new Date(p.prazo).getTime() < new Date().setHours(0,0,0,0));
+      const isVencido = p.prazo && !p.concluida && (new Date(p.prazo).getTime() < new Date().setHours(0,0,0,0));
       const status = p.concluida ? 'concluido' : (isVencido ? 'vencido' : 'pendente');
       if (!filterStatus.includes(status)) return false;
     }
@@ -307,8 +303,8 @@ export default function CollaboratorsPage() {
     if (a.concluida && !b.concluida) return 1;
     if (!a.concluida && b.concluida) return -1;
   
-    const dateA = new Date(a.prazo).getTime();
-    const dateB = new Date(b.prazo).getTime();
+    const dateA = a.prazo ? new Date(a.prazo).getTime() : 9999999999999; // Put those without date at the end
+    const dateB = b.prazo ? new Date(b.prazo).getTime() : 9999999999999;
     
     if (dateA !== dateB) return dateA - dateB;
 
@@ -379,8 +375,8 @@ export default function CollaboratorsPage() {
 
   const handeSubmitPendency = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendDescricao || !pendPrazo || pendColabs.length === 0) {
-      toast.warning('Preencha os campos obrigatórios (Descrição, Prazo, e ao menos 1 Colaborador).');
+    if (!pendDescricao || (isAdmin && !pendPrazo) || pendColabs.length === 0) {
+      toast.warning(isAdmin ? 'Preencha os campos obrigatórios (Descrição, Prazo, e ao menos 1 Colaborador).' : 'Preencha os campos obrigatórios (Descrição e ao menos 1 Colaborador).');
       return;
     }
 
@@ -423,7 +419,7 @@ export default function CollaboratorsPage() {
   };
 
   const renderPendencyRow = (p: Pendency) => {
-    const isVencido = !p.concluida && (new Date(p.prazo).getTime() < new Date().setHours(0,0,0,0));
+    const isVencido = p.prazo && !p.concluida && (new Date(p.prazo).getTime() < new Date().setHours(0,0,0,0));
     
     return (
       <tr key={p.id} className={`border-b border-border last:border-0 transition-colors ${isVencido ? 'bg-red-500/5 hover:bg-red-500/10 border-l-[4px] border-l-red-500' : 'hover:bg-muted/30'} ${p.concluida ? 'opacity-60 bg-muted/20' : ''}`}>
@@ -474,7 +470,7 @@ export default function CollaboratorsPage() {
           )}
         </td>
         <td className={`px-4 py-3 whitespace-nowrap font-medium ${isVencido ? 'text-red-600' : 'text-foreground'}`}>
-          {p.prazo.substring(0, 10).split('-').reverse().join('/')}
+          {p.prazo ? p.prazo.substring(0, 10).split('-').reverse().join('/') : <span className="text-muted-foreground italic">Sem prazo</span>}
         </td>
         <td className="px-4 py-3">
           <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider ${p.urgencia === 'alta' ? 'bg-red-500/20 text-red-600' : p.urgencia === 'media' ? 'bg-orange-500/20 text-orange-600' : 'bg-blue-500/20 text-blue-600'}`}>
@@ -912,13 +908,13 @@ export default function CollaboratorsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Prazo <span className="text-destructive">*</span></label>
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Prazo {isAdmin && <span className="text-destructive">*</span>}</label>
                     <Input 
                       type="date"
                       value={pendPrazo} 
                       onChange={e => setPendPrazo(e.target.value)} 
                       className="bg-background"
-                      required
+                      required={isAdmin}
                       disabled={!isAdmin}
                       title={!isAdmin ? "Apenas administradores podem definir o prazo" : ""}
                     />
@@ -1105,7 +1101,7 @@ export default function CollaboratorsPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm mt-3">
                         <div>
                           <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Prazo</span>
-                          <span className={isVencido ? 'text-red-600 font-medium' : ''}>{p.prazo.substring(0, 10).split('-').reverse().join('/')}</span>
+                          <span className={isVencido ? 'text-red-600 font-medium' : ''}>{p.prazo ? p.prazo.substring(0, 10).split('-').reverse().join('/') : 'Sem prazo'}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Colaboradores</span>

@@ -42,7 +42,7 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
         setResponsavel(projectToEdit.responsavel);
         setDepartamento(projectToEdit.departamento || "none");
         setUrgencia(projectToEdit.urgencia);
-        setPrazo(projectToEdit.prazo.split('T')[0]); // ISO to YYYY-MM-DD
+        setPrazo(projectToEdit.prazo ? projectToEdit.prazo.split('T')[0] : ""); // ISO to YYYY-MM-DD
         setObs(projectToEdit.obs || "");
         setAttachments(projectToEdit.attachments || []);
       } else {
@@ -50,7 +50,7 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
         setResponsavel("");
         setDepartamento("none");
         setUrgencia("media");
-        setPrazo(format(new Date(), "yyyy-MM-dd"));
+        setPrazo(isAdmin ? format(new Date(), "yyyy-MM-dd") : "");
         setObs("");
         setAttachments([]);
       }
@@ -95,7 +95,7 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
       responsavel,
       departamento: departamento === "none" ? undefined : (departamento as ProjectDepartment),
       urgencia,
-      prazo: new Date(prazo).toISOString(),
+      prazo: prazo ? new Date(prazo).toISOString() : "",
       obs,
       attachments
     };
@@ -126,7 +126,7 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição / Título do Projeto *</Label>
+            <Label htmlFor="descricao">Descrição / Título do Projeto <span className="text-destructive">*</span></Label>
             <Input 
               id="descricao" 
               value={descricao} 
@@ -184,13 +184,13 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prazo">Prazo Final *</Label>
+            <Label htmlFor="prazo">Prazo Final {isAdmin && <span className="text-destructive">*</span>}</Label>
             <Input 
               id="prazo" 
               type="date" 
               value={prazo} 
               onChange={e => setPrazo(e.target.value)} 
-              required 
+              required={isAdmin} 
               disabled={!isAdmin}
               title={!isAdmin ? "Apenas administradores podem definir o prazo" : ""}
             />

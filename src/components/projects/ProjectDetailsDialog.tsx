@@ -82,7 +82,7 @@ const ProjectDetailsDialog = ({ open, onOpenChange, project }: ProjectDetailsDia
             <div>
               <p className="text-xs text-slate-400 uppercase font-semibold">Prazo Final</p>
               <p className="font-medium text-white mt-1">
-                {format(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })}
+                {project.prazo ? format(new Date(project.prazo.substring(0, 10) + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR }) : 'Sem prazo'}
               </p>
             </div>
             <div>

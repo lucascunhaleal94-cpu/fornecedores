@@ -46,6 +46,7 @@ const ProjectCalendar = ({ filters }: ProjectCalendarProps) => {
       return false;
     }
     if (filters.prazo !== "todos") {
+      if (!p.prazo) return false;
       const prazoDate = new Date(p.prazo.substring(0, 10) + 'T12:00:00');
       if (filters.prazo === "atrasados") {
         return p.status !== 'FINALIZADO' && isBefore(prazoDate, startOfDay(new Date()));
@@ -121,6 +122,7 @@ const ProjectCalendar = ({ filters }: ProjectCalendarProps) => {
           
           // Projetos do dia
           const dayProjects = filteredProjects.filter(p => {
+             if (!p.prazo) return false;
              const prazoDate = new Date(p.prazo.substring(0, 10) + 'T12:00:00');
              return isSameDay(prazoDate, day);
           });
