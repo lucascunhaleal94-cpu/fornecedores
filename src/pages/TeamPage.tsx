@@ -375,8 +375,8 @@ export default function CollaboratorsPage() {
 
   const handeSubmitPendency = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendDescricao || (isAdmin && !pendPrazo) || pendColabs.length === 0) {
-      toast.warning(isAdmin ? 'Preencha os campos obrigatórios (Descrição, Prazo, e ao menos 1 Colaborador).' : 'Preencha os campos obrigatórios (Descrição e ao menos 1 Colaborador).');
+    if (!pendDescricao || !pendPrazo || pendColabs.length === 0) {
+      toast.warning('Preencha os campos obrigatórios (Descrição, Prazo, e ao menos 1 Colaborador).');
       return;
     }
 
@@ -908,15 +908,15 @@ export default function CollaboratorsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Prazo {isAdmin && <span className="text-destructive">*</span>}</label>
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Prazo <span className="text-destructive">*</span></label>
                     <Input 
                       type="date"
                       value={pendPrazo} 
                       onChange={e => setPendPrazo(e.target.value)} 
                       className="bg-background"
-                      required={isAdmin}
-                      disabled={!isAdmin}
-                      title={!isAdmin ? "Apenas administradores podem definir o prazo" : ""}
+                      required
+                      disabled={!isAdmin && isEditingPendency}
+                      title={(!isAdmin && isEditingPendency) ? "Apenas administradores podem editar o prazo de uma pendência já cadastrada" : ""}
                     />
                   </div>
 
