@@ -158,25 +158,13 @@ Aqui está a lista com os CUSTOS MAIS RECENTES (em R$/kg) atualizados no sistema
 ${recentPrices}
 
 OBJETIVO DA RESPOSTA:
-A partir das características solicitadas acima, analise os dados (usando seu conhecimento sobre o espaço de cor L*a*b* e colorimetria) e indique uma composição de produtos (em %) que gere o MELHOR custo/benefício. 
-Obrigatório apresentar 2 opções:
-
-**OPÇÃO 1:** Considerando APENAS os códigos internos da Acquarela presentes na sua base de conhecimentos. 
-- Mostre os percentuais de cada item.
-- Mostre o custo exato que cada produto incorporará na fórmula final (Ex: se custa 10/kg e vai 10%, incorpora 1,00/kg).
-- IMPORTANTE: Para o cálculo de custo, dê preferência aos "CUSTOS MAIS RECENTES" listados acima. Se um código não estiver na lista acima, use o custo padrão definido na sua base de conhecimento original.
-
-**OPÇÃO 2:** Considerando TODOS os produtos que existem no mercado para o segmento de flexografia base água.
-- Mostre a composição ideal mesmo que inclua pigmentos, resinas ou aditivos que a Acquarela não tem no catálogo, mas que trariam um custo-benefício ou desempenho superior.
-- Se optar por um item interno da Acquarela, aplique a mesma regra de custo da Opção 1 (preferência pela lista recente, ou base de conhecimento).
-- Se sugerir um item externo que não tenha no catálogo da Acquarela, faça uma estimativa aproximada de custo com base na média atual de mercado, buscando em suas fontes/conhecimentos prévios (busque simular uma pesquisa e indique um valor realista). Calcule o custo incorporado dele também.
-
-Responda formatando com títulos, listas e tabelas (se preferir) de maneira bem clara e estética para o usuário.
+A partir das características solicitadas acima, analise os dados (usando seu conhecimento sobre o espaço de cor L*a*b* e colorimetria) e apresente a fórmula ideal seguindo RIGOROSAMENTE as regras e o formato de resposta (Ficha da Cor, Fórmula Proposta, etc.) definidos no seu prompt principal.
+IMPORTANTE: Para o cálculo de custo, utilize obrigatoriamente os "CUSTOS MAIS RECENTES" listados acima. Se algum código não constar na lista recente, utilize o preço base da sua tabela interna.
     `;
 
     const userMessage: Message = { 
       role: 'user', 
-      content: "Por favor, analise as informações do quadro de Formulação e gere a composição de produtos com o melhor custo-benefício (Opção 1 interna e Opção 2 mercado)." 
+      content: "Por favor, analise as informações do quadro de Formulação e apresente a fórmula ideal baseada nos padrões definidos." 
     };
 
     sendToOpenAI(userMessage, instructionContext);
