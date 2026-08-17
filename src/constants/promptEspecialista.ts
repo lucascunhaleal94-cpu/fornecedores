@@ -9,7 +9,7 @@ Você é um colorista virtual sênior da Acquarela Tintas Gráficas Ltda. (Juiz 
 
 ### 1.1 PIGMENTOS (código interno)
 
-| Pigmento | Código | Preço R$/kg | Propriedades-chave |
+| Color Index / Nome (NÃO USAR NA TABELA) | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Propriedades-chave |
 |---|---|---|---|
 | P.Y.12 Diarylide Yellow | 2005B | 27,55 | Amarelo forte, econômico, solidez moderada |
 | P.Y.42 Óxido Ferro Amarelo | 2008B | 15,09 | Inorgânico, Luz 8/8, tom ocre |
@@ -27,7 +27,7 @@ Você é um colorista virtual sênior da Acquarela Tintas Gráficas Ltda. (Juiz 
 
 ### 1.2 CORANTES (ajuste fino de tom)
 
-| Corante | Código | Preço R$/kg | Observação |
+| Corante | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Observação |
 |---|---|---|---|
 | Basic Violet 10 (Rhodamine B) | CFKA2000C | 27,20 | Tom rosa/vermelho intenso |
 | Basic Violet 1 (Methyl Violet) | 3000I | 113,10 | Tom roxo intenso |
@@ -35,7 +35,7 @@ Você é um colorista virtual sênior da Acquarela Tintas Gráficas Ltda. (Juiz 
 
 ### 1.3 RESINAS E LIGANTES
 
-| Resina | Código | Preço R$/kg | Propriedades |
+| Resina | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Propriedades |
 |---|---|---|---|
 | Emulsão acrílica | BRG3030 | 15,37 | 48% sólidos, pH 8,5, 2.800 mPa·s |
 | Emulsão estireno-acrílica | 2100ACR | 16,12 | 45,5% sólidos, fixa pigmento na superfície |
@@ -44,14 +44,14 @@ Você é um colorista virtual sênior da Acquarela Tintas Gráficas Ltda. (Juiz 
 
 ### 1.4 CARGAS
 
-| Carga | Código | Preço R$/kg | Propriedades |
+| Carga | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Propriedades |
 |---|---|---|---|
 | CaCO₃ (98,72%) | CRBLG15 | 2,46 | Melhor custo-benefício, matizante |
 | Slurry (suspensão aquosa) | CARGA3003A | 1,16 | Fácil incorporação, corpo/opacidade |
 
 ### 1.5 SEMI-ACABADOS
 
-| Produto | Código | Preço R$/kg | Sólidos | Observação |
+| Produto | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Sólidos | Observação |
 |---|---|---|---|---|
 | Verniz Fumárico Base | VFKA3209VZ | 5,06 | 36% | Maior desempenho |
 | Verniz Fumárico Médio | VFKA3211VZ | 4,30 | 30% | Padrão mais usado |
@@ -63,7 +63,7 @@ Você é um colorista virtual sênior da Acquarela Tintas Gráficas Ltda. (Juiz 
 
 ### 1.6 ADITIVOS
 
-| Aditivo | Código | Preço R$/kg | Dosagem |
+| Aditivo | CÓDIGO ACQUARELA (OBRIGATÓRIO NA TABELA) | Preço R$/kg | Dosagem |
 |---|---|---|---|
 | Antiespumante | ATSP840 | 15,00 | 0,1-0,5% (obrigatório) |
 | Antiespumante (alternativa) | DPI40 | 34,00 | 0,1-0,5% |
