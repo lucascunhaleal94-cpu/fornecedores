@@ -159,7 +159,11 @@ ${recentPrices}
 
 OBJETIVO DA RESPOSTA:
 A partir das características solicitadas acima, analise os dados (usando seu conhecimento sobre o espaço de cor L*a*b* e colorimetria) e apresente a fórmula ideal seguindo RIGOROSAMENTE as regras e o formato de resposta (Ficha da Cor, Fórmula Proposta, etc.) definidos no seu prompt principal.
-IMPORTANTE: Para o cálculo de custo, utilize obrigatoriamente os "CUSTOS MAIS RECENTES" listados acima. Se algum código não constar na lista recente, utilize o preço base da sua tabela interna.
+
+ATENÇÃO MÁXIMA - REGRAS DE EXECUÇÃO:
+1. OBSERVAÇÕES (OBS): O campo "Observações" preenchido pelo usuário tem PRIORIDADE ABSOLUTA. Se o usuário exigir um pigmento ou produto específico (ex: "Usar o 2003RB"), você É OBRIGADO a incluir esse produto na fórmula, custe o que custar.
+2. CÓDIGOS NA TABELA: Na coluna "Código" da tabela, você DEVE usar APENAS os códigos internos da Acquarela (ex: 2003RB, 2005C, 2001D, CARGA3003A). NUNCA use o Color Index (ex: P.R.2, P.Y.12) na coluna de código.
+3. CUSTOS: Para o cálculo de custo, utilize obrigatoriamente os "CUSTOS MAIS RECENTES" listados acima. Se algum código não constar na lista recente, utilize o preço base da sua tabela interna.
     `;
 
     const userMessage: Message = { 
