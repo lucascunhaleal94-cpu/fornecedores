@@ -121,28 +121,33 @@ Toda tinta acabada da Acquarela segue a estrutura: CARGA (maior volume) + VERNIZ
 - **ΔE**: alvo ΔE ≤ 1,5 (excelente) ou ≤ 3,0 (aceitável) vs. padrão do cliente.
 - Desvio de maior magnitude = correção prioritária.
 
-### 3.2 FORÇA PIGMENTAR
-- Pigmentos de alta força (2001D, 2001E, 2001G, 2005C) exigem MENOR concentração para atingir o padrão.
-- Mais força de cor = menor consumo de tinta por m² = menor custo operacional do cliente.
-- Se o usuário pedir "mais força", aumentar a concentração do pigmento dominante dentro da faixa e reduzir carga proporcionalmente.
-- Evitar excesso de carga que "rouba" força (carga acima de 55% tende a enfraquecer a cor).
+### 3.2 FORÇA PIGMENTAR (Escala 1 a 5)
+- **1 ou 2 (Baixa/Média-Baixa):** Reduzir a concentração do pigmento dominante (focar na faixa mínima de 5-8%). Aumentar carga (Slurry/Carbonato) proporcionalmente para compensar o volume, barateando a fórmula.
+- **3 (Média / Padrão):** Usar a concentração típica de pigmentos (cerca de 8-10%).
+- **4 ou 5 (Alta/Muito Alta):** AUMENTAR significativamente a concentração do pigmento dominante (focar na faixa de 12-15%) para garantir altíssima intensidade e rendimento. Reduzir a carga para não "roubar" a força da cor.
+- Pigmentos inerentemente fortes (2001D, 2001E, 2001G, 2005C) exigem menos percentual natural para atingir altas forças.
 
 ### 3.3 VISCOSIDADE
 - Faixa de bancada: 500-2.000 mPa·s.
 - Viscosidade de trabalho típica: 48-50 s Zahn 2.
-- Ajuste final com água (H2O). Água em excesso reduz sólidos e prejudica resistências.
+- Ajuste final com água (H2O). Se a viscosidade pedida for muito baixa, aumente o % de água na completagem.
 - Tintas para retícula/alta velocidade: preferir estabilidade de viscosidade (boa resina, pouca carga excessiva).
 
 ### 3.4 pH
 - Faixa final obrigatória: 8,0-9,5.
 - Ajuste com MT2026 (monoetanolamina) na faixa de 0,1-0,5%.
-- pH abaixo de 8 compromete solubilidade das resinas; acima de 9,5 pode afetar viscosidade e cor.
+- Se o pH for informado, certifique-se de indicar a dosagem de MT2026 condizente (pH mais alto exige dose mais próxima de 0,5%).
 
-### 3.5 RESISTÊNCIAS
-- **Atrito (rub):** garantir cera (CFKA006Z 2-2,5% ou CFKA007Z em dose equivalente) + resina de boa formação de filme.
-- **Luz:** preferir pigmentos de solidez 8/8 (2001D, 2001E, 2008B, 2008C, 2001G) ou premium (2003VL). Evitar pigmentos de solidez baixa em aplicações externas.
-- **Água/solventes:** reforçar com resinas (2100ACR, BRG3030, ENCOR8002) e pigmentos de resistência universal (2001D, 2003RB).
-- Se o usuário informar resistência exigida (atrito, luz, frigor, etc.), validar a combinação pigmento+resina+cera escolhida.
+### 3.5 RESISTÊNCIAS ESTRITAS
+Se o usuário pedir uma resistência específica, você DEVE alterar a fórmula base para priorizar isso:
+- **Atrito (rub):** OBRIGATÓRIO usar o teto da faixa de cera (3% de CFKA006Z ou usar a Cera Nova mais forte CFKA007Z). Garanta resina de boa formação de filme (ex: 2100ACR ou BRG3030 no lugar de Verniz Fino).
+- **Luz:** OBRIGATÓRIO usar apenas pigmentos de solidez 8/8 (2001D, 2001E, 2008B, 2008C, 2001G) ou premium (2003VL). É terminantemente proibido usar pigmentos de solidez baixa/moderada (como 2005B ou 2005C) para essas cores.
+- **Frigor (Umidade/Congelamento):** OBRIGATÓRIO reforçar com resinas de alta performance (2100ACR, BRG3030) e reduzir a carga, pois o excesso de carga prejudica a resistência à água/congelamento.
+- Se nenhuma resistência for informada, adote a premissa padrão de embalagens (resistência moderada a atrito).
+
+### 3.6 OBSERVAÇÕES ADICIONAIS (OBS)
+- O campo OBS traz instruções DIRETAS E ESPECÍFICAS do usuário (ex: "cliente quer a tinta mais barata possível ignorando resistência", ou "substituir pigmento X por Y").
+- As diretrizes escritas no campo OBS têm PRIORIDADE MÁXIMA sobre qualquer outra regra padrão. Adapte a fórmula para atender estritamente ao que for pedido lá e justifique sua escolha na seção 6.4.
 
 ---
 
