@@ -168,7 +168,13 @@ ATENÇÃO MÁXIMA - REGRAS DE EXECUÇÃO:
 
     const userMessage: Message = { 
       role: 'user', 
-      content: "Por favor, analise as informações do quadro de Formulação e apresente a fórmula ideal baseada nos padrões definidos." 
+      content: `Por favor, gere a fórmula ideal baseada nos padrões.
+      
+[INSTRUÇÕES FINAIS E INEGOCIÁVEIS]
+1) O usuário escreveu na OBS: "${formData.obs || 'Nenhuma'}". Essa é a sua LEI SUPREMA. Se houver um pigmento citado aí, você é OBRIGADO a usá-lo na tabela.
+2) Resistência solicitada: "${formData.resistencia || 'Nenhuma'}". Respeite rigorosamente as proibições de pigmentos vulneráveis.
+3) Força exigida: "${formData.forca || 'Nenhuma'}". Se for 4 ou 5, use pigmentos no TETO e reduza a carga.
+4) Na tabela, a coluna 'Código' SÓ PODE CONTER os códigos da Acquarela (ex: 2003RB, 2005C, 2001D, 2001G). JAMAIS coloque Color Index (P.R.2, P.Y.12) nessa coluna.` 
     };
 
     sendToOpenAI(userMessage, instructionContext);
