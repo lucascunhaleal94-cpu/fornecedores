@@ -96,6 +96,7 @@ export default function CollaboratorsPage() {
   const [showConclusaoModal, setShowConclusaoModal] = useState(false);
   const [concluindoId, setConcluindoId] = useState('');
   const [obsConclusao, setObsConclusao] = useState('');
+  const [dataConclusao, setDataConclusao] = useState('');
   const [showConcluidas, setShowConcluidas] = useState(false);
 
   const [codigo, setCodigo] = useState('');
@@ -302,6 +303,12 @@ export default function CollaboratorsPage() {
   const sortedPendencies = [...filteredPendencies].sort((a,b) => {
     if (a.concluida && !b.concluida) return 1;
     if (!a.concluida && b.concluida) return -1;
+
+    if (a.concluida && b.concluida) {
+      const dateA = a.dataConclusao ? new Date(a.dataConclusao).getTime() : 0;
+      const dateB = b.dataConclusao ? new Date(b.dataConclusao).getTime() : 0;
+      if (dateA !== dateB) return dateA - dateB;
+    }
   
     const dateA = a.prazo ? new Date(a.prazo).getTime() : 9999999999999; // Put those without date at the end
     const dateB = b.prazo ? new Date(b.prazo).getTime() : 9999999999999;
@@ -408,13 +415,19 @@ export default function CollaboratorsPage() {
   };
   
   const handleConcluir = () => {
+    if (!dataConclusao) {
+      toast.warning('A data de conclusão é obrigatória.');
+      return;
+    }
     updatePendency(concluindoId, {
       concluida: true,
-      obsConclusao
+      obsConclusao,
+      dataConclusao
     });
     toast.success('Pendência marcada como concluída!');
     setShowConclusaoModal(false);
     setObsConclusao('');
+    setDataConclusao('');
     setConcluindoId('');
   };
 
@@ -470,7 +483,7 @@ export default function CollaboratorsPage() {
           )}
         </td>
         <td className={`px-4 py-3 whitespace-nowrap font-medium ${isVencido ? 'text-red-600' : 'text-foreground'}`}>
-          {p.prazo ? p.prazo.substring(0, 10).split('-').reverse().join('/') : <span className="text-muted-foreground italic">Sem prazo</span>}
+          {p.concluida && p.dataConclusao ? p.dataConclusao.substring(0, 10).split('-').reverse().join('/') : p.prazo ? p.prazo.substring(0, 10).split('-').reverse().join('/') : <span className="text-muted-foreground italic">Sem prazo</span>}
         </td>
         <td className="px-4 py-3">
           <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider ${p.urgencia === 'alta' ? 'bg-red-500/20 text-red-600' : p.urgencia === 'media' ? 'bg-orange-500/20 text-orange-600' : 'bg-blue-500/20 text-blue-600'}`}>
@@ -496,7 +509,7 @@ export default function CollaboratorsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {!p.concluida && (
-                <DropdownMenuItem onClick={() => { setConcluindoId(p.id); setShowConclusaoModal(true); setObsConclusao(''); }} className="gap-2 cursor-pointer font-bold text-green-600 focus:text-green-700">
+                <DropdownMenuItem onClick={() => { setConcluindoId(p.id); setShowConclusaoModal(true); setObsConclusao(''); setDataConclusao(new Date().toISOString().split('T')[0]); }} className="gap-2 cursor-pointer font-bold text-green-600 focus:text-green-700">
                   <CheckSquare className="w-4 h-4" /> Concluir
                 </DropdownMenuItem>
               )}
@@ -1053,14 +1066,26 @@ export default function CollaboratorsPage() {
             </div>
             
             <div className="p-6">
-               <div className="space-y-2">
-                  <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Observação (Opcional)</label>
-                  <textarea 
-                    value={obsConclusao} 
-                    onChange={e => setObsConclusao(e.target.value)} 
-                    placeholder="Ex: Tarefa finalizada e enviada via email..." 
-                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                  />
+               <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Data de Conclusão <span className="text-destructive">*</span></label>
+                    <Input 
+                      type="date"
+                      value={dataConclusao} 
+                      onChange={e => setDataConclusao(e.target.value)} 
+                      className="bg-background"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">Observação (Opcional)</label>
+                    <textarea 
+                      value={obsConclusao} 
+                      onChange={e => setObsConclusao(e.target.value)} 
+                      placeholder="Ex: Tarefa finalizada e enviada via email..." 
+                      className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                    />
+                  </div>
                 </div>
             </div>
 

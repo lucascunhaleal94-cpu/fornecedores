@@ -213,6 +213,7 @@ export interface Pendency {
   prazo: string;
   urgencia: UrgenciaType;
   concluida: boolean;
+  dataConclusao?: string;
   obsConclusao?: string;
   observacao?: string;
   anexos?: ProjectAttachment[];
