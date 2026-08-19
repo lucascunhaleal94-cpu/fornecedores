@@ -205,6 +205,13 @@ export interface Collaborator {
 
 export type UrgenciaType = 'baixa' | 'media' | 'alta';
 
+export interface PendencyInteraction {
+  id: string;
+  autor: string; // Ex: "Administrador (lucas)" ou "Usuário (joao)"
+  texto: string;
+  createdAt: string;
+}
+
 export interface Pendency {
   id: string;
   fornecedorId?: string;
@@ -217,6 +224,7 @@ export interface Pendency {
   obsConclusao?: string;
   observacao?: string;
   anexos?: ProjectAttachment[];
+  interacoes?: PendencyInteraction[];
   createdAt: string;
   updatedAt: string;
 }

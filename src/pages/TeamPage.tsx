@@ -60,7 +60,7 @@ const FilterDropdown = ({ title, options, selected, onChange }: { title: string,
 };
 
 export default function CollaboratorsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { collaborators, addCollaborator, updateCollaborator, deleteCollaborator, importCollaborators, deleteAllCollaborators, pendencies, addPendency, updatePendency, deletePendency } = useCollaborators();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -104,6 +104,9 @@ export default function CollaboratorsPage() {
   const [departamento, setDepartamento] = useState('');
   const [obs, setObs] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
+
+  const [openInteractions, setOpenInteractions] = useState<Record<string, boolean>>({});
+  const [newInteractionText, setNewInteractionText] = useState<Record<string, string>>({});
 
   const getDepartmentColor = (dept: string) => {
     if (!dept) return 'bg-muted text-muted-foreground border-border';
@@ -430,6 +433,29 @@ export default function CollaboratorsPage() {
     setDataConclusao('');
     setConcluindoId('');
   };
+  const handleAddInteraction = (pendencyId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    const text = newInteractionText[pendencyId];
+    if (!text || text.trim() === '') return;
+
+    const autorName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+    const autorString = `${isAdmin ? 'Administrador' : 'Usuário'} (${autorName})`;
+
+    const newInteraction = {
+      id: 'int-' + Date.now().toString(),
+      autor: autorString,
+      texto: text.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    const pendency = pendencies.find(p => p.id === pendencyId);
+    if (pendency) {
+      const updatedInteractions = [...(pendency.interacoes || []), newInteraction];
+      updatePendency(pendencyId, { interacoes: updatedInteractions });
+      setNewInteractionText(prev => ({ ...prev, [pendencyId]: '' }));
+      toast.success('Interação adicionada!');
+    }
+  };
 
   const renderPendencyRow = (p: Pendency) => {
     const isVencido = p.prazo && !p.concluida && (new Date(p.prazo).getTime() < new Date().setHours(0,0,0,0));
@@ -479,6 +505,52 @@ export default function CollaboratorsPage() {
           {p.concluida && p.obsConclusao && (
             <div className="mt-2 text-xs text-muted-foreground bg-background p-2 rounded-md border border-border/50">
               <strong>Obs da Conclusão:</strong> {p.obsConclusao}
+            </div>
+          )}
+
+          <div className="mt-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 text-xs gap-1 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenInteractions(prev => ({ ...prev, [p.id]: !prev[p.id] }));
+              }}
+            >
+              {openInteractions[p.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              Interações ({p.interacoes?.length || 0})
+            </Button>
+          </div>
+          {openInteractions[p.id] && (
+            <div className="mt-2 pl-2 border-l-2 border-primary/20 space-y-3" onClick={e => e.stopPropagation()}>
+              {p.interacoes && p.interacoes.length > 0 ? (
+                <div className="space-y-2">
+                  {p.interacoes.map(int => (
+                    <div key={int.id} className="bg-muted/30 p-2 rounded-md text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-primary">{int.autor}</span>
+                        <span className="text-muted-foreground">{new Date(int.createdAt).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <p className="text-foreground whitespace-pre-wrap">{int.texto}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">Nenhuma interação registrada.</p>
+              )}
+              {!p.concluida && (
+                <form onSubmit={(e) => handleAddInteraction(p.id, e)} className="flex gap-2 items-start mt-2">
+                  <Input 
+                    size={1}
+                    className="h-8 text-xs bg-background" 
+                    placeholder="Adicionar nova interação..." 
+                    value={newInteractionText[p.id] || ''}
+                    onChange={(e) => setNewInteractionText(prev => ({...prev, [p.id]: e.target.value}))}
+                  />
+                  <Button type="submit" size="sm" className="h-8 text-xs shrink-0">Enviar</Button>
+                </form>
+              )}
             </div>
           )}
         </td>
