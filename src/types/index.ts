@@ -207,9 +207,11 @@ export type UrgenciaType = 'baixa' | 'media' | 'alta';
 
 export interface PendencyInteraction {
   id: string;
-  autor: string; // Ex: "Administrador (lucas)" ou "Usuário (joao)"
+  autor: string; // Ex: "Administrador (Lucas)" ou "Usuário (Geovane)"
+  autorEmail?: string;
   texto: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Pendency {

@@ -107,6 +107,8 @@ export default function CollaboratorsPage() {
 
   const [openInteractions, setOpenInteractions] = useState<Record<string, boolean>>({});
   const [newInteractionText, setNewInteractionText] = useState<Record<string, string>>({});
+  const [editingInteractionId, setEditingInteractionId] = useState<string | null>(null);
+  const [editInteractionText, setEditInteractionText] = useState<string>('');
 
   const getDepartmentColor = (dept: string) => {
     if (!dept) return 'bg-muted text-muted-foreground border-border';
@@ -450,6 +452,7 @@ export default function CollaboratorsPage() {
     const newInteraction = {
       id: 'int-' + Date.now().toString(),
       autor: autorString,
+      autorEmail: user?.email || '',
       texto: text.trim(),
       createdAt: new Date().toISOString()
     };
@@ -461,6 +464,36 @@ export default function CollaboratorsPage() {
       setNewInteractionText(prev => ({ ...prev, [pendencyId]: '' }));
       toast.success('Interação adicionada!');
     }
+  };
+
+  const handleDeleteInteraction = (pendencyId: string, interactionId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta interação?')) return;
+    const pendency = pendencies.find(p => p.id === pendencyId);
+    if (!pendency) return;
+    const updatedInteractions = (pendency.interacoes || []).filter(int => int.id !== interactionId);
+    updatePendency(pendencyId, { interacoes: updatedInteractions });
+    toast.success('Interação removida!');
+  };
+
+  const startEditingInteraction = (interactionId: string, currentText: string) => {
+    setEditingInteractionId(interactionId);
+    setEditInteractionText(currentText);
+  };
+
+  const saveEditInteraction = (pendencyId: string, interactionId: string) => {
+    if (!editInteractionText.trim()) return;
+    const pendency = pendencies.find(p => p.id === pendencyId);
+    if (!pendency) return;
+    const updatedInteractions = (pendency.interacoes || []).map(int => {
+      if (int.id === interactionId) {
+        return { ...int, texto: editInteractionText.trim(), updatedAt: new Date().toISOString() };
+      }
+      return int;
+    });
+    updatePendency(pendencyId, { interacoes: updatedInteractions });
+    setEditingInteractionId(null);
+    setEditInteractionText('');
+    toast.success('Interação atualizada!');
   };
 
   const renderPendencyRow = (p: Pendency) => {
@@ -532,15 +565,59 @@ export default function CollaboratorsPage() {
             <div className="mt-2 pl-2 border-l-2 border-primary/20 space-y-3" onClick={e => e.stopPropagation()}>
               {p.interacoes && p.interacoes.length > 0 ? (
                 <div className="space-y-2">
-                  {p.interacoes.map(int => (
-                    <div key={int.id} className="bg-muted/30 p-2 rounded-md text-xs">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-primary">{int.autor}</span>
-                        <span className="text-muted-foreground">{new Date(int.createdAt).toLocaleString('pt-BR')}</span>
+                  {p.interacoes.map(int => {
+                    let rawAutorName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+                    if (user?.email?.toLowerCase() === 'suprimentos@acquarelatintas.com.br') {
+                      rawAutorName = 'Geovane';
+                    }
+                    const autorName = rawAutorName.charAt(0).toUpperCase() + rawAutorName.slice(1);
+                    const currentUserAutorString = `${isAdmin ? 'Administrador' : 'Usuário'} (${autorName})`;
+                    const isOwner = (int.autorEmail && user?.email && int.autorEmail === user.email) || int.autor === currentUserAutorString;
+
+                    return (
+                      <div key={int.id} className="bg-muted/30 p-2 rounded-md text-xs relative group">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-primary">{int.autor}</span>
+                          <span className="text-muted-foreground flex flex-col text-right text-[10px]">
+                            <span>{new Date(int.createdAt).toLocaleString('pt-BR')}</span>
+                            {int.updatedAt && (
+                              <span className="italic text-muted-foreground/70">Editado: {new Date(int.updatedAt).toLocaleString('pt-BR')}</span>
+                            )}
+                          </span>
+                        </div>
+                        
+                        {editingInteractionId === int.id ? (
+                          <div className="mt-2 space-y-2">
+                            <Input 
+                              size={1}
+                              className="h-7 text-xs bg-background" 
+                              value={editInteractionText}
+                              onChange={(e) => setEditInteractionText(e.target.value)}
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-6 text-[10px]" onClick={() => saveEditInteraction(p.id, int.id)}>Salvar</Button>
+                              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setEditingInteractionId(null)}>Cancelar</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-foreground whitespace-pre-wrap pr-12">{int.texto}</p>
+                            {isOwner && (
+                              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 p-1 rounded">
+                                <button onClick={() => startEditingInteraction(int.id, int.texto)} className="p-1 hover:bg-background rounded text-blue-500" title="Editar">
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button onClick={() => handleDeleteInteraction(p.id, int.id)} className="p-1 hover:bg-background rounded text-red-500" title="Excluir">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
-                      <p className="text-foreground whitespace-pre-wrap">{int.texto}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic">Nenhuma interação registrada.</p>
