@@ -174,7 +174,11 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
   const updatePendency = async (id: string, updates: Partial<Pendency>) => {
     const now = new Date().toISOString();
     setPendencies(prev => prev.map(p => p.id === id ? { ...p, ...updates, updatedAt: now } : p));
-    await supabase.from('pendencies').update({ ...updates, updatedAt: now }).eq('id', id);
+    const { error } = await supabase.from('pendencies').update({ ...updates, updatedAt: now }).eq('id', id);
+    if (error) {
+      console.error('Error updating pendency:', error);
+      toast.error('Erro ao atualizar no banco de dados. Verifique a coluna no Supabase.');
+    }
   };
 
   const deletePendency = async (id: string) => {
