@@ -438,7 +438,13 @@ export default function CollaboratorsPage() {
     const text = newInteractionText[pendencyId];
     if (!text || text.trim() === '') return;
 
-    const autorName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+    let rawAutorName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+    
+    if (user?.email?.toLowerCase() === 'suprimentos@acquarelatintas.com.br') {
+      rawAutorName = 'Geovane';
+    }
+    
+    const autorName = rawAutorName.charAt(0).toUpperCase() + rawAutorName.slice(1);
     const autorString = `${isAdmin ? 'Administrador' : 'Usuário'} (${autorName})`;
 
     const newInteraction = {
