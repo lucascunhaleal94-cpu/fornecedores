@@ -540,7 +540,7 @@ export default function ManutencoesPage() {
                   <thead>
                     <tr className="border-b border-white/5 bg-white/[0.02]">
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[200px]">{quadro.isEquip ? 'Item' : 'Serviço'}</th>
-                      <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[250px]">Descrição</th>
+                      <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[150px] max-w-[250px]">Descrição</th>
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">{quadro.isEquip ? 'Periodicidade (Dias)' : 'Periodicidade (KM)'}</th>
                       {!quadro.isEquip && <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">KM Realizado</th>}
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Data da Realização</th>
@@ -548,7 +548,7 @@ export default function ManutencoesPage() {
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Tipo</th>
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Demanda</th>
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap text-right">Status</th>
-                      <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Ações</th>
+                      <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap sticky right-0 bg-[#131825] z-10 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.3)]">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -614,7 +614,7 @@ export default function ManutencoesPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 sticky right-0 bg-[#131825] z-10 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.3)]">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="h-8 gap-1 px-3 bg-white/5 border-white/10 hover:bg-white/10 text-slate-300" size="sm">
@@ -675,13 +675,13 @@ export default function ManutencoesPage() {
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[200px]">{quadro.isEquip ? 'Item' : 'Serviço'}</th>
-                    <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[250px]">Descrição</th>
+                    <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[150px] max-w-[250px]">Descrição</th>
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Tipo</th>
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Data da Realização</th>
                     {!quadro.isEquip && <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">KM Realizado</th>}
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Valor (R$)</th>
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[300px]">Observação</th>
-                    <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider text-right whitespace-nowrap">Ações</th>
+                    <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider text-right whitespace-nowrap sticky right-0 bg-[#131825] z-10 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.3)]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -721,7 +721,7 @@ export default function ManutencoesPage() {
                         <td className="px-4 py-4 text-slate-400 italic text-xs max-w-sm truncate" title={item.observacao}>
                           {item.observacao || 'Sem observações.'}
                         </td>
-                        <td className="px-4 py-4 text-right">
+                        <td className="px-4 py-4 text-right sticky right-0 bg-[#131825] z-10 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.3)]">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" className="h-8 gap-1 px-3 bg-white/5 border-white/10 hover:bg-white/10 text-slate-300" size="sm">
