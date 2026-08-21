@@ -32,6 +32,7 @@ export default function ManutencoesPage() {
   const [formData, setFormData] = useState<any>({
     id: '',
     servico: '',
+    descricao: '',
     periodicidade_km: '',
     km_realizado: '',
     data_realizacao: '',
@@ -65,6 +66,7 @@ export default function ManutencoesPage() {
     setFormData({
       id: '',
       servico: '',
+      descricao: '',
       periodicidade_km: '',
       km_realizado: '',
       data_realizacao: '',
@@ -121,6 +123,7 @@ export default function ManutencoesPage() {
         setFormData({
           id: '',
           servico: mConcluida.servico,
+          descricao: mConcluida.descricao || '',
           periodicidade_km: mConcluida.periodicidade_km || '',
           km_realizado: '',
           data_realizacao: '',
@@ -176,6 +179,7 @@ export default function ManutencoesPage() {
     try {
       const payload = {
         servico: formData.servico,
+        descricao: formData.descricao || null,
         periodicidade_km: formData.periodicidade_km || null,
         km_realizado: formData.km_realizado || null,
         data_realizacao: formData.data_realizacao || null,
@@ -536,6 +540,7 @@ export default function ManutencoesPage() {
                   <thead>
                     <tr className="border-b border-white/5 bg-white/[0.02]">
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[200px]">{quadro.isEquip ? 'Item' : 'Serviço'}</th>
+                      <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[250px]">Descrição</th>
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">{quadro.isEquip ? 'Periodicidade (Dias)' : 'Periodicidade (KM)'}</th>
                       {!quadro.isEquip && <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">KM Realizado</th>}
                       <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Data da Realização</th>
@@ -558,6 +563,9 @@ export default function ManutencoesPage() {
                         <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-4 font-medium text-slate-200">
                             {item.servico}
+                          </td>
+                          <td className="px-4 py-4 text-slate-400 text-xs whitespace-normal line-clamp-2" title={item.descricao}>
+                            {item.descricao || '-'}
                           </td>
                           <td className="px-4 py-4 text-slate-400 font-mono">
                             {item.periodicidade_km || '-'}
@@ -667,6 +675,7 @@ export default function ManutencoesPage() {
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[200px]">{quadro.isEquip ? 'Item' : 'Serviço'}</th>
+                    <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider min-w-[250px]">Descrição</th>
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Tipo</th>
                     <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">Data da Realização</th>
                     {!quadro.isEquip && <th className="px-4 py-4 font-semibold text-slate-400 text-xs uppercase tracking-wider whitespace-nowrap">KM Realizado</th>}
@@ -687,6 +696,9 @@ export default function ManutencoesPage() {
                       <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
                         <td className="px-4 py-4 font-medium text-slate-200">
                           {item.servico}
+                        </td>
+                        <td className="px-4 py-4 text-slate-400 text-xs whitespace-normal line-clamp-2" title={item.descricao}>
+                          {item.descricao || '-'}
                         </td>
                         <td className="px-4 py-4">
                           <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider ${
@@ -770,6 +782,15 @@ export default function ManutencoesPage() {
                   onChange={(e) => setFormData({...formData, servico: e.target.value})}
                   className="bg-black/20 border-white/10 text-white placeholder:text-white/20" 
                   placeholder={formData.veiculo === 'EQUIPAMENTO' ? 'Ex: Correia transportadora' : 'Ex: Troca de Óleo'} 
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label className="text-slate-300">Descrição (Opcional)</Label>
+                <textarea 
+                  value={formData.descricao}
+                  onChange={(e) => setFormData({...formData, descricao: e.target.value})}
+                  className="w-full h-20 p-3 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none text-sm placeholder:text-white/20"
+                  placeholder="Detalhes sobre a manutenção a ser feita..."
                 />
               </div>
               {formData.demanda === 'FIXA' && (
