@@ -177,7 +177,8 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
     const { error } = await supabase.from('pendencies').update({ ...updates, updatedAt: now }).eq('id', id);
     if (error) {
       console.error('Error updating pendency:', error);
-      toast.error('Erro ao atualizar no banco de dados. Verifique a coluna no Supabase.');
+      toast.error('Erro ao atualizar no banco de dados: ' + error.message);
+      throw error;
     }
   };
 

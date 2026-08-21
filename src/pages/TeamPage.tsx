@@ -419,21 +419,46 @@ export default function CollaboratorsPage() {
     setShowPendencyModal(false);
   };
   
-  const handleConcluir = () => {
+  const handleConcluir = async () => {
     if (!dataConclusao) {
       toast.warning('A data de conclusão é obrigatória.');
       return;
     }
-    updatePendency(concluindoId, {
-      concluida: true,
-      obsConclusao,
-      dataConclusao
-    });
-    toast.success('Pendência marcada como concluída!');
-    setShowConclusaoModal(false);
-    setObsConclusao('');
-    setDataConclusao('');
-    setConcluindoId('');
+
+    const pendency = pendencies.find(p => p.id === concluindoId);
+    if (!pendency) return;
+
+    let rawAutorName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+    if (user?.email?.toLowerCase() === 'suprimentos@acquarelatintas.com.br') {
+      rawAutorName = 'Geovane';
+    }
+    const autorName = rawAutorName.charAt(0).toUpperCase() + rawAutorName.slice(1);
+    const autorString = `${isAdmin ? 'Administrador' : 'Usuário'} (${autorName})`;
+
+    const interactionText = `✅ Pendência concluída em ${dataConclusao.split('-').reverse().join('/')}${obsConclusao ? `\nObservação: ${obsConclusao}` : ''}`;
+    const newInteraction = {
+      id: 'int-' + Date.now().toString(),
+      autor: autorString,
+      autorEmail: user?.email || '',
+      texto: interactionText,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await updatePendency(concluindoId, {
+        concluida: true,
+        interacoes: [...(pendency.interacoes || []), newInteraction]
+      });
+      
+      toast.success('Pendência marcada como concluída!');
+      setShowConclusaoModal(false);
+      setObsConclusao('');
+      setDataConclusao('');
+      setConcluindoId('');
+    } catch (e) {
+      console.error(e);
+      // The context will already throw a toast error
+    }
   };
   const handleAddInteraction = (pendencyId: string, e: React.FormEvent) => {
     e.preventDefault();
