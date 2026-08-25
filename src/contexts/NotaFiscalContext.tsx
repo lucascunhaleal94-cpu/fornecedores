@@ -7,23 +7,29 @@ interface NotaFiscalContextType {
   notasFiscais: NotaFiscal[];
   fetchNotasByFornecedor: (fornecedorId: string) => NotaFiscal[];
   addNotaFiscal: (nota: Omit<NotaFiscal, 'id' | 'createdAt'>) => Promise<{ success: boolean; id?: string }>;
-  importNotasFiscais: (notas: Omit<NotaFiscal, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; count: number; updatedCount: number }>;
+  importNotasFiscais: (notas: Omit<NotaFiscal, 'id' | 'createdAt'>[], fileName?: string) => Promise<{ success: boolean; count: number; updatedCount: number }>;
   updateNotaFiscal: (id: string, updates: Partial<NotaFiscal>) => Promise<{ success: boolean }>;
   deleteNotaFiscal: (id: string) => Promise<{ success: boolean }>;
+  fetchNotasFiscais: (fornecedorId: string) => Promise<void>;
+  loading: boolean;
 }
 
 const NotaFiscalContext = createContext<NotaFiscalContextType | undefined>(undefined);
 
 export function NotaFiscalProvider({ children }: { children: React.ReactNode }) {
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscal[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchTodasNotas = async () => {
+    setLoading(true);
     const { data, error } = await supabase.from('notas_fiscais').select('*').order('data_emissao', { ascending: false });
     if (error) {
       console.error('Erro ao buscar notas fiscais:', error);
+      setLoading(false);
       return;
     }
     if (data) setNotasFiscais(data as NotaFiscal[]);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -32,6 +38,10 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
 
   const fetchNotasByFornecedor = (fornecedorId: string) => {
     return notasFiscais.filter(nota => nota.fornecedor_id === fornecedorId);
+  };
+
+  const fetchNotasFiscais = async (fornecedorId: string) => {
+    // Helper if specific refetch is needed
   };
 
   const addNotaFiscal = async (nota: Omit<NotaFiscal, 'id' | 'createdAt'>) => {
@@ -52,12 +62,14 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
     return { success: true, id: newDoc.id };
   };
 
-  const importNotasFiscais = async (novasNotas: Omit<NotaFiscal, 'id' | 'createdAt'>[]) => {
+  const importNotasFiscais = async (novasNotas: Omit<NotaFiscal, 'id' | 'createdAt'>[], fileName?: string) => {
     const docsToInsert: NotaFiscal[] = [];
     const docsToUpdate: NotaFiscal[] = [];
 
-    novasNotas.forEach(n => {
-      // Find existing note matching the exact same criteria (fornecedor + nota + produto)
+    const safeFileName = fileName ? fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) : 'upload';
+    const importPrefix = `imp-${safeFileName}-${Date.now()}`;
+
+    novasNotas.forEach((n, index) => {
       const existing = notasFiscais.find(
         ex => ex.fornecedor_id === n.fornecedor_id && 
               ex.numero_nota === n.numero_nota && 
@@ -72,7 +84,7 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
       } else {
         docsToInsert.push({
           ...n,
-          id: 'nota-' + Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          id: `${importPrefix}-${Math.random().toString(36).substr(2, 9)}`,
           createdAt: new Date().toISOString(),
         });
       }

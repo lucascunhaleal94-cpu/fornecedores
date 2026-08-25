@@ -24,8 +24,36 @@ const normalizeText = (str: string) => {
 export default function FornecedoresPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const [isDeleteNotasOpen, setIsDeleteNotasOpen] = useState(false);
   const { fornecedores, importFornecedores, deleteFornecedor } = useFornecedores();
   const { notasFiscais, importNotasFiscais, deleteNotaFiscal } = useNotasFiscais();
+
+  const excelNotasGroups = useMemo(() => {
+    const excelNotas = notasFiscais.filter(n => n.id.startsWith('imp-'));
+    const groups = new Map<string, { label: string, ids: string[], count: number, timestamp: number }>();
+    
+    excelNotas.forEach(n => {
+      // id format: imp-filename_xlsx-1710928374-xyz123
+      const parts = n.id.split('-');
+      if (parts.length >= 4) {
+        const timestampStr = parts[parts.length - 2];
+        const filename = parts.slice(1, parts.length - 2).join('-');
+        
+        const key = `imp-${filename}-${timestampStr}`;
+        if (!groups.has(key)) {
+          const ts = parseInt(timestampStr, 10);
+          const dateObj = new Date(ts);
+          const label = `${filename} (${dateObj.toLocaleDateString('pt-BR')} às ${dateObj.toLocaleTimeString('pt-BR')})`;
+          groups.set(key, { label, ids: [], count: 0, timestamp: ts });
+        }
+        const group = groups.get(key)!;
+        group.ids.push(n.id);
+        group.count++;
+      }
+    });
+
+    return Array.from(groups.values()).sort((a, b) => b.timestamp - a.timestamp);
+  }, [notasFiscais]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [estadoFilter, setEstadoFilter] = useState('todos');
@@ -79,7 +107,8 @@ export default function FornecedoresPage() {
 
   const generateModelNotas = () => {
     const data = [{
-      'Fornecedor (CNPJ ou Razão Social)': '00.000.000/0001-00',
+      'Fornecedor (CNPJ ou Razão Social)': 'Razão Social Exemplo',
+      'CNPJ': '00.000.000/0001-00',
       'Nota Fiscal': '12345',
       'Data de Emissão': '01/01/2026',
       'Código': 'PROD-001',
@@ -150,15 +179,25 @@ export default function FornecedoresPage() {
         const notasMap = new Map<string, Omit<NotaFiscal, 'id' | 'createdAt'>>();
 
         json.forEach(row => {
-          const fornecedorIdentifier = row['Fornecedor (CNPJ ou Razão Social)'] || row['Fornecedor'] || row['CNPJ'];
+          const identifier1 = row['Fornecedor (CNPJ ou Razão Social)'] || row['Fornecedor'];
+          const identifier2 = row['CNPJ'];
           
-          if (!fornecedorIdentifier) return;
+          if (!identifier1 && !identifier2) return;
 
           // Find Fornecedor
-          const found = fornecedores.find(f => 
-            normalizeText(f.razaoSocial) === normalizeText(String(fornecedorIdentifier)) ||
-            (f.cnpj && String(f.cnpj).replace(/\D/g, '') === String(fornecedorIdentifier).replace(/\D/g, ''))
-          );
+          const found = fornecedores.find(f => {
+            const match1 = identifier1 && (
+              normalizeText(f.razaoSocial) === normalizeText(String(identifier1)) ||
+              (f.cnpj && String(f.cnpj).replace(/\D/g, '') === String(identifier1).replace(/\D/g, ''))
+            );
+            
+            const match2 = identifier2 && (
+              (f.cnpj && String(f.cnpj).replace(/\D/g, '') === String(identifier2).replace(/\D/g, '')) ||
+              normalizeText(f.razaoSocial) === normalizeText(String(identifier2))
+            );
+
+            return match1 || match2;
+          });
 
           if (found) {
             const numero_nota = String(row['Nota Fiscal'] || '');
@@ -190,7 +229,7 @@ export default function FornecedoresPage() {
         const notasValidas = Array.from(notasMap.values());
 
         if (notasValidas.length > 0) {
-          const res = await importNotasFiscais(notasValidas);
+          const res = await importNotasFiscais(notasValidas, file.name);
           if (res.success) {
             let msg = '';
             if (res.count > 0) msg += `${res.count} notas inseridas. `;
@@ -342,23 +381,69 @@ export default function FornecedoresPage() {
                   </AlertDialogContent>
                 </AlertDialog>
 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <Dialog open={isDeleteNotasOpen} onOpenChange={setIsDeleteNotasOpen}>
+                  <DialogTrigger asChild>
                     <Button variant="outline" className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent rounded-full px-4 gap-2">
                       <Trash2 className="w-4 h-4" /> Excluir Notas
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-[#131825] border-white/10 text-white">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir todas as notas fiscais?</AlertDialogTitle>
-                      <AlertDialogDescription className="text-slate-400">Esta ação não pode ser desfeita.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleExcluirTodasNotas} className="bg-orange-500 hover:bg-orange-600">Excluir</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-xl border-white/10 text-white bg-[#131825]">
+                    <DialogHeader>
+                      <DialogTitle>Gerenciar Arquivos de Notas Fiscais</DialogTitle>
+                      <DialogDescription className="text-slate-400">
+                        Abaixo estão listados os arquivos Excel importados e o número de notas fiscais lidas a partir de cada um. Selecione qual arquivo deseja excluir.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto space-y-3 mt-4 pr-2">
+                      {excelNotasGroups.length === 0 && (
+                        <p className="text-center text-slate-500 py-4">Nenhuma nota importada via arquivo excel encontrada.</p>
+                      )}
+                      {excelNotasGroups.map((group, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-[#0b0f19]">
+                          <div>
+                            <p className="font-medium text-sm text-white">{group.label}</p>
+                            <p className="text-xs text-slate-400 mt-1">{group.count} notas inseridas</p>
+                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="bg-red-600 hover:bg-red-700 h-8 gap-1"
+                            onClick={async () => {
+                              if (window.confirm(`Tem certeza que deseja excluir as ${group.count} notas de "${group.label}"?`)) {
+                                try {
+                                  await Promise.all(group.ids.map(id => deleteNotaFiscal(id)));
+                                  toast.success(`Excluídas com sucesso!`);
+                                } catch (e) {
+                                  toast.error("Erro ao excluir notas.");
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" /> Excluir
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    {excelNotasGroups.length > 0 && (
+                       <div className="pt-4 mt-2 border-t border-white/10 flex justify-end">
+                          <Button variant="destructive" className="gap-2 bg-red-600 hover:bg-red-700" onClick={async () => {
+                             if (window.confirm("Atenção: Isso excluirá TODAS as notas de todos os arquivos Excel. Continuar?")) {
+                                try {
+                                  const allIds = excelNotasGroups.flatMap(g => g.ids);
+                                  await Promise.all(allIds.map(id => deleteNotaFiscal(id)));
+                                  toast.success("Todas as notas importadas foram excluídas.");
+                                  setIsDeleteNotasOpen(false);
+                                } catch (e) {
+                                  toast.error("Erro ao excluir notas.");
+                                }
+                             }
+                          }}>
+                             <Trash2 className="w-4 h-4" /> Excluir Tudo em Massa
+                          </Button>
+                       </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </>
             )}
           </div>
