@@ -29,22 +29,36 @@ export default function FornecedoresPage() {
   const { notasFiscais, importNotasFiscais, deleteNotaFiscal } = useNotasFiscais();
 
   const excelNotasGroups = useMemo(() => {
-    const excelNotas = notasFiscais.filter(n => n.id.startsWith('imp-'));
     const groups = new Map<string, { label: string, ids: string[], count: number, timestamp: number }>();
     
-    excelNotas.forEach(n => {
-      // id format: imp-filename_xlsx-1710928374-xyz123
-      const parts = n.id.split('-');
-      if (parts.length >= 4) {
-        const timestampStr = parts[parts.length - 2];
-        const filename = parts.slice(1, parts.length - 2).join('-');
-        
-        const key = `imp-${filename}-${timestampStr}`;
+    notasFiscais.forEach(n => {
+      if (n.id.startsWith('imp-')) {
+        // id format: imp-filename_xlsx-1710928374-xyz123
+        const parts = n.id.split('-');
+        if (parts.length >= 4) {
+          const timestampStr = parts[parts.length - 2];
+          const filename = parts.slice(1, parts.length - 2).join('-');
+          
+          const key = `imp-${filename}-${timestampStr}`;
+          if (!groups.has(key)) {
+            const ts = parseInt(timestampStr, 10);
+            const dateObj = new Date(ts);
+            const label = `${filename} (${dateObj.toLocaleDateString('pt-BR')} às ${dateObj.toLocaleTimeString('pt-BR')})`;
+            groups.set(key, { label, ids: [], count: 0, timestamp: ts });
+          }
+          const group = groups.get(key)!;
+          group.ids.push(n.id);
+          group.count++;
+        }
+      } else {
+        // Formato antigo: 'nota-...'
+        // Agrupar pela data de criação até o minuto
+        if (!n.createdAt) return;
+        const key = `old-${n.createdAt.slice(0, 16)}`;
         if (!groups.has(key)) {
-          const ts = parseInt(timestampStr, 10);
-          const dateObj = new Date(ts);
-          const label = `${filename} (${dateObj.toLocaleDateString('pt-BR')} às ${dateObj.toLocaleTimeString('pt-BR')})`;
-          groups.set(key, { label, ids: [], count: 0, timestamp: ts });
+          const dateObj = new Date(n.createdAt);
+          const label = `Importação Antiga (${dateObj.toLocaleDateString('pt-BR')} às ${dateObj.toLocaleTimeString('pt-BR').slice(0, 5)})`;
+          groups.set(key, { label, ids: [], count: 0, timestamp: dateObj.getTime() });
         }
         const group = groups.get(key)!;
         group.ids.push(n.id);
