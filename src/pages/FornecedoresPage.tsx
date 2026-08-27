@@ -85,10 +85,11 @@ export default function FornecedoresPage() {
   const filteredFornecedores = useMemo(() => {
     return fornecedores.filter(f => {
       const searchNormalized = normalizeText(searchTerm);
+      const searchDigits = searchTerm.replace(/\D/g, '');
       const matchSearch = !searchTerm || 
         normalizeText(f.razaoSocial || '').includes(searchNormalized) || 
         normalizeText(f.nomeFantasia || '').includes(searchNormalized) ||
-        (f.cnpj && f.cnpj.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')));
+        (searchDigits !== '' && f.cnpj && f.cnpj.replace(/\D/g, '').includes(searchDigits));
       
       const matchStatus = statusFilter === 'todos' || f.status === statusFilter;
       const matchEstado = estadoFilter === 'todos' || f.estado === estadoFilter;
