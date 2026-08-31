@@ -98,8 +98,8 @@ export function GlobalSearch() {
 
     // Projetos
     const pMatches = (projects || []).filter(p => 
-      (p?.name?.toLowerCase() || '').includes(q) || 
-      (p?.client?.toLowerCase() || '').includes(q)
+      (p?.descricao?.toLowerCase() || '').includes(q) || 
+      (p?.responsavel?.toLowerCase() || '').includes(q)
     ).slice(0, 5);
 
     if (pMatches.length > 0) {
@@ -108,8 +108,8 @@ export function GlobalSearch() {
         icon: <KanbanSquare className="w-4 h-4 text-purple-400" />,
         items: pMatches.map(p => ({
           id: p.id,
-          title: p.name || 'Sem nome',
-          subtitle: p.client || 'Sem cliente',
+          title: p.descricao || 'Sem descrição',
+          subtitle: p.responsavel || 'Sem responsável',
           onClick: () => {
             navigate('/projetos');
             setIsOpen(false);
@@ -144,7 +144,7 @@ export function GlobalSearch() {
 
     // Pendências
     const pendMatches = (pendencies || []).filter(p => 
-      (p?.description?.toLowerCase() || '').includes(q)
+      (p?.descricao?.toLowerCase() || '').includes(q)
     ).slice(0, 5);
 
     if (pendMatches.length > 0) {
@@ -153,8 +153,8 @@ export function GlobalSearch() {
         icon: <FileWarning className="w-4 h-4 text-red-400" />,
         items: pendMatches.map(p => ({
           id: p.id,
-          title: p.description,
-          subtitle: `Mês/Ano: ${p.month}/${p.year}`,
+          title: p.descricao || 'Sem descrição',
+          subtitle: p.prazo ? `Prazo: ${new Date(p.prazo).toLocaleDateString()}` : 'Sem prazo',
           onClick: () => {
             navigate('/equipe');
             setIsOpen(false);
