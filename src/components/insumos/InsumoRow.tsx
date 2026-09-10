@@ -14,7 +14,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  ComposedChart,
+  Bar
 } from 'recharts';
 
 interface InsumoRowProps {
@@ -32,6 +34,30 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         </p>
         <p className="text-slate-400 text-xs">Fornecedor:</p>
         <p className="text-slate-200">{data.fornecedorNome}</p>
+      </div>
+    );
+  }
+  return null;
+}
+
+const VolumeTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const volumeData = payload.find((p: any) => p.dataKey === 'volume');
+    const mediaData = payload.find((p: any) => p.dataKey === 'mediaAcumulada');
+    
+    return (
+      <div className="bg-[#131825] border border-white/10 p-3 rounded-lg shadow-xl text-sm">
+        <p className="text-white font-medium mb-1">{label}</p>
+        {volumeData && (
+          <p className="text-blue-400 font-bold mb-1">
+            Volume: {volumeData.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+          </p>
+        )}
+        {mediaData && (
+          <p className="text-red-400 font-bold">
+            Média Acumulada: {mediaData.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+          </p>
+        )}
       </div>
     );
   }
@@ -113,6 +139,102 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
     });
   }, [insumoNotas, activeYear]);
 
+  // Dados de volume agrupados por mês para o ano ativo
+  const dadosVolume = useMemo(() => {
+    const mesesAbreviados = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    if (dadosAnoAtivo.length === 0) return [];
+    
+    const parsedDates = dadosAnoAtivo.map(n => {
+      let date;
+      if (n.data_emissao) {
+        const parts = n.data_emissao.split('/');
+        if (parts.length === 3) {
+          date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        } else {
+          date = new Date(n.data_emissao);
+        }
+      }
+      return { n, date };
+    }).filter(d => d.date && !isNaN(d.date.getTime()));
+
+    if (parsedDates.length === 0) return [];
+
+    let minDate = parsedDates[0].date!;
+    let maxDate = parsedDates[0].date!;
+
+    parsedDates.forEach(d => {
+      if (d.date! < minDate) minDate = d.date!;
+      if (d.date! > maxDate) maxDate = d.date!;
+    });
+
+    const agrupado = new Map<string, { time: number, label: string, volume: number }>();
+
+    if (activeYear === 'Todos') {
+       const startYear = minDate.getFullYear();
+       const startMonth = minDate.getMonth();
+       const endYear = maxDate.getFullYear();
+       const endMonth = maxDate.getMonth();
+       
+       for (let y = startYear; y <= endYear; y++) {
+         const mStart = (y === startYear) ? startMonth : 0;
+         const mEnd = (y === endYear) ? endMonth : 11;
+         for (let m = mStart; m <= mEnd; m++) {
+           const key = `${mesesAbreviados[m]}/${y.toString().substring(2)}`;
+           const timeForSort = new Date(y, m, 1).getTime();
+           agrupado.set(key, { time: timeForSort, label: key, volume: 0 });
+         }
+       }
+    } else {
+       const yearNum = parseInt(activeYear);
+       const currentYear = new Date().getFullYear();
+       const currentMonth = new Date().getMonth();
+       
+       let endMonth = 11;
+       if (yearNum === currentYear) {
+         endMonth = Math.max(currentMonth, maxDate.getFullYear() === currentYear ? maxDate.getMonth() : 0);
+       } else if (yearNum > currentYear) {
+         endMonth = maxDate.getFullYear() === yearNum ? maxDate.getMonth() : 11;
+       }
+
+       for (let m = 0; m <= endMonth; m++) {
+         const key = mesesAbreviados[m];
+         const timeForSort = m;
+         agrupado.set(key, { time: timeForSort, label: key, volume: 0 });
+       }
+    }
+
+    parsedDates.forEach(d => {
+      const date = d.date!;
+      const monthIdx = date.getMonth();
+      const yearStr = date.getFullYear().toString();
+      
+      const key = activeYear === 'Todos' ? `${mesesAbreviados[monthIdx]}/${yearStr.substring(2)}` : mesesAbreviados[monthIdx];
+      
+      if (agrupado.has(key)) {
+        agrupado.get(key)!.volume += (Number(d.n.quantidade) || 0);
+      } else {
+        const timeForSort = activeYear === 'Todos' ? new Date(date.getFullYear(), monthIdx, 1).getTime() : monthIdx;
+        agrupado.set(key, { time: timeForSort, label: key, volume: (Number(d.n.quantidade) || 0) });
+      }
+    });
+
+    const result = Array.from(agrupado.values()).sort((a, b) => a.time - b.time);
+    
+    let sum = 0;
+    let count = 0;
+    
+    return result.map((item) => {
+      sum += item.volume;
+      count += 1;
+      return {
+        mes: item.label,
+        volume: item.volume,
+        mediaAcumulada: sum / count
+      };
+    });
+  }, [dadosAnoAtivo, activeYear]);
+
   const handleMotivoChange = (id: string, motivo: string) => {
     // Optimistic update is handled in context
     updateNotaFiscal(id, { motivo });
@@ -175,7 +297,7 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
                   ) : (
                     <Tabs value={activeYear} onValueChange={setActiveYear} className="w-full">
                       <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-medium text-white">Evolução de Preços</h3>
+                        <h3 className="text-lg font-medium text-white">Evoluções</h3>
                         <TabsList className="bg-[#131825] border border-white/10">
                           {anosDisponiveis.map(ano => (
                             <TabsTrigger 
@@ -191,36 +313,75 @@ export function InsumoRow({ insumo }: InsumoRowProps) {
 
                       <TabsContent value={activeYear} className="mt-0 space-y-8">
                         
-                        {/* Gráfico */}
-                        <div className="h-[300px] w-full bg-[#131825] border border-white/5 rounded-xl p-4">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={dadosAnoAtivo} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                              <XAxis 
-                                dataKey="data_emissao" 
-                                stroke="#ffffff50" 
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                              />
-                              <YAxis 
-                                stroke="#ffffff50" 
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(val) => `R$ ${val}`}
-                              />
-                              <Tooltip content={<CustomTooltip />} />
-                              <Line 
-                                type="monotone" 
-                                dataKey="valor_unitario" 
-                                stroke="#34d399" 
-                                strokeWidth={3}
-                                dot={{ r: 4, fill: '#34d399', strokeWidth: 2, stroke: '#131825' }}
-                                activeDot={{ r: 6, fill: '#10b981', strokeWidth: 0 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
+                        {/* Gráfico de Preços */}
+                        <div>
+                          <h4 className="text-sm font-medium text-slate-400 mb-4 px-1">Evolução de Preços</h4>
+                          <div className="h-[300px] w-full bg-[#131825] border border-white/5 rounded-xl p-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={dadosAnoAtivo} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                                <XAxis 
+                                  dataKey="data_emissao" 
+                                  stroke="#ffffff50" 
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                />
+                                <YAxis 
+                                  stroke="#ffffff50" 
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tickFormatter={(val) => `R$ ${val}`}
+                                />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="valor_unitario" 
+                                  stroke="#34d399" 
+                                  strokeWidth={3}
+                                  dot={{ r: 4, fill: '#34d399', strokeWidth: 2, stroke: '#131825' }}
+                                  activeDot={{ r: 6, fill: '#10b981', strokeWidth: 0 }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+
+                        {/* Gráfico de Volume */}
+                        <div>
+                          <h4 className="text-sm font-medium text-slate-400 mb-4 px-1">Evolução de Volumes</h4>
+                          <div className="h-[300px] w-full bg-[#131825] border border-white/5 rounded-xl p-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <ComposedChart data={dadosVolume} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                                <XAxis 
+                                  dataKey="mes" 
+                                  stroke="#ffffff50" 
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                />
+                                <YAxis 
+                                  stroke="#ffffff50" 
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tickFormatter={(val) => `${val} kg`}
+                                />
+                                <Tooltip content={<VolumeTooltip />} />
+                                <Bar dataKey="volume" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="mediaAcumulada" 
+                                  stroke="#ef4444" 
+                                  strokeWidth={3}
+                                  dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#131825' }}
+                                  activeDot={{ r: 6, fill: '#dc2626', strokeWidth: 0 }}
+                                />
+                              </ComposedChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
 
                         {/* Tabela de Detalhes */}
