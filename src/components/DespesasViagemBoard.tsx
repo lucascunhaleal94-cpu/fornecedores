@@ -1,0 +1,340 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { Plus, Trash2, Edit2, CheckCircle2, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+interface Despesa {
+  id?: string;
+  veiculo: string;
+  data: string;
+  local: string;
+  quantidade: number;
+  pedagio: number;
+  motorista: number;
+  combustivel: number;
+  hotel: number;
+  gasto_extra_valor: number;
+  gasto_extra_motivo: string;
+  valor_transportadora: number;
+  economia: number;
+}
+
+export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
+  const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastoExtraStr?: string }>({
+    motorista: 50,
+    gasto_extra_motivo: '',
+    pedagioStr: '',
+    quantidadeStr: '',
+    combustivelStr: '',
+    hotelStr: '',
+    gastoExtraStr: '',
+  });
+
+  const fetchDespesas = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('despesas_viagem')
+        .select('*')
+        .eq('veiculo', veiculo)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        // Ignora erro se tabela não existir
+        console.error("Tabela despesas_viagem pode não existir ainda.", error);
+      } else if (data) {
+        setDespesas(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDespesas();
+  }, [veiculo]);
+
+  // Recalcular campos automáticos
+  useEffect(() => {
+    const loc = (novaDespesa.local || '').toUpperCase();
+    
+    let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
+    if (loc === 'RJ') pedagioNum = 126.00;
+    else if (loc === 'BH') pedagioNum = 109.20;
+
+    const quantidadeNum = novaDespesa.quantidadeStr !== '' ? Number(novaDespesa.quantidadeStr) : 0;
+    const valor_transportadora = quantidadeNum * 0.88;
+
+    const combustivelNum = novaDespesa.combustivelStr !== '' ? Number(novaDespesa.combustivelStr) : 0;
+    const hotelNum = novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0;
+    const gastoExtraNum = novaDespesa.gastoExtraStr !== '' ? Number(novaDespesa.gastoExtraStr) : 0;
+
+    const totalGastos = pedagioNum + 50.00 + combustivelNum + hotelNum + gastoExtraNum;
+    const economia = valor_transportadora - totalGastos;
+
+    setNovaDespesa(prev => ({
+      ...prev,
+      motorista: 50.00,
+      valor_transportadora,
+      economia
+    }));
+  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastoExtraStr]);
+
+  const handleAddRow = async () => {
+    if (!novaDespesa.data || !novaDespesa.local || novaDespesa.quantidadeStr === '' || novaDespesa.combustivelStr === '') {
+      toast.error('Preencha os campos obrigatórios: Data, Local, Quantidade e Combustível.');
+      return;
+    }
+
+    const loc = (novaDespesa.local || '').toUpperCase();
+    if (loc !== 'RJ' && loc !== 'BH' && novaDespesa.pedagioStr === '') {
+      toast.error('Informe o valor do pedágio para este local.');
+      return;
+    }
+
+    let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
+    if (loc === 'RJ') pedagioNum = 126.00;
+    else if (loc === 'BH') pedagioNum = 109.20;
+
+    const payload = {
+      veiculo,
+      data: novaDespesa.data,
+      local: loc,
+      quantidade: Number(novaDespesa.quantidadeStr),
+      pedagio: pedagioNum,
+      motorista: novaDespesa.motorista,
+      combustivel: Number(novaDespesa.combustivelStr),
+      hotel: novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0,
+      gasto_extra_valor: novaDespesa.gastoExtraStr !== '' ? Number(novaDespesa.gastoExtraStr) : 0,
+      gasto_extra_motivo: novaDespesa.gasto_extra_motivo || '',
+      valor_transportadora: novaDespesa.valor_transportadora,
+      economia: novaDespesa.economia
+    };
+
+    try {
+      const { data, error } = await supabase.from('despesas_viagem').insert([payload]).select();
+      
+      if (error) {
+        console.error(error);
+        toast.error('Erro ao salvar no banco. A tabela "despesas_viagem" foi criada?');
+        // Adiciona localmente caso o banco falhe, para o usuário não travar
+        setDespesas([{ ...payload, id: Math.random().toString() } as Despesa, ...despesas]);
+      } else if (data) {
+        setDespesas([...data, ...despesas]);
+        toast.success('Despesa registrada com sucesso!');
+      }
+
+      // Reset
+      setNovaDespesa({
+        motorista: 50,
+        gasto_extra_motivo: '',
+        pedagioStr: '',
+        quantidadeStr: '',
+        combustivelStr: '',
+        hotelStr: '',
+        gastoExtraStr: '',
+        data: '',
+        local: ''
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro de conexão.');
+    }
+  };
+
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from('despesas_viagem').delete().eq('id', id);
+      if (error) throw error;
+      setDespesas(despesas.filter(d => d.id !== id));
+      toast.success('Despesa excluída.');
+    } catch (err) {
+      console.error(err);
+      setDespesas(despesas.filter(d => d.id !== id)); // Tenta excluir localmente se falhar
+    }
+  };
+
+  const formatCurrency = (val: number) => {
+    return `R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  };
+
+  const formatNumber = (val: number) => {
+    return Number(val).toLocaleString('pt-BR');
+  };
+
+  // Ajuste do fuso para data
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  return (
+    <div className="mt-4 bg-[#131825] border border-white/5 shadow-2xl rounded-2xl overflow-hidden relative">
+      <div className="bg-slate-800/50 px-4 py-3 border-b border-white/5">
+        <h3 className="font-bold text-slate-300 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg>
+          Despesas de Viagem
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead>
+            <tr className="border-b border-white/5 bg-white/[0.02]">
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Data*</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Local*</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Qtd (KG)*</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Pedágio</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Motorista</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Combustível*</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Hotel</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap min-w-[200px]">Gasto Extra</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Valor Transp.</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap">Economia</th>
+              <th className="px-3 py-3 font-semibold text-slate-400 text-xs uppercase whitespace-nowrap text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Linha de Cadastro (Inline) */}
+            <tr className="border-b border-blue-500/20 bg-blue-500/5">
+              <td className="px-2 py-2">
+                <Input 
+                  type="date"
+                  value={novaDespesa.data || ''}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, data: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[120px]"
+                />
+              </td>
+              <td className="px-2 py-2">
+                <Input 
+                  type="text"
+                  placeholder="Ex: RJ"
+                  value={novaDespesa.local || ''}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, local: e.target.value.toUpperCase()})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[60px] uppercase"
+                  maxLength={2}
+                />
+              </td>
+              <td className="px-2 py-2">
+                <Input 
+                  type="number"
+                  placeholder="KG"
+                  value={novaDespesa.quantidadeStr}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, quantidadeStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                />
+              </td>
+              <td className="px-2 py-2">
+                <Input 
+                  type="number"
+                  placeholder="R$"
+                  disabled={novaDespesa.local === 'RJ' || novaDespesa.local === 'BH'}
+                  value={novaDespesa.local === 'RJ' ? '126' : (novaDespesa.local === 'BH' ? '109.2' : novaDespesa.pedagioStr)}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, pedagioStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                />
+              </td>
+              <td className="px-2 py-2 font-medium text-slate-300">
+                {formatCurrency(50)}
+              </td>
+              <td className="px-2 py-2">
+                <Input 
+                  type="number"
+                  placeholder="R$"
+                  value={novaDespesa.combustivelStr}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, combustivelStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[90px]"
+                />
+              </td>
+              <td className="px-2 py-2">
+                <Input 
+                  type="number"
+                  placeholder="R$"
+                  value={novaDespesa.hotelStr}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, hotelStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                />
+              </td>
+              <td className="px-2 py-2 flex gap-1">
+                <Input 
+                  type="number"
+                  placeholder="R$"
+                  value={novaDespesa.gastoExtraStr}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, gastoExtraStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
+                />
+                <Input 
+                  type="text"
+                  placeholder="Motivo..."
+                  value={novaDespesa.gasto_extra_motivo || ''}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, gasto_extra_motivo: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
+                />
+              </td>
+              <td className="px-2 py-2 font-medium text-blue-400 whitespace-nowrap">
+                {formatCurrency(novaDespesa.valor_transportadora || 0)}
+              </td>
+              <td className="px-2 py-2 font-medium whitespace-nowrap">
+                <span className={(novaDespesa.economia || 0) >= 0 ? "text-emerald-400" : "text-red-400"}>
+                  {formatCurrency(novaDespesa.economia || 0)}
+                </span>
+              </td>
+              <td className="px-2 py-2 text-right">
+                <Button size="sm" onClick={handleAddRow} className="h-8 bg-blue-500 hover:bg-blue-600 text-white px-2">
+                  <Save className="w-4 h-4 mr-1" /> Salvar
+                </Button>
+              </td>
+            </tr>
+
+            {/* Lista de Registros */}
+            {despesas.map(item => (
+              <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                <td className="px-3 py-3 text-slate-300">{item.data ? formatDate(item.data) : '-'}</td>
+                <td className="px-3 py-3 text-slate-300 font-bold uppercase">{item.local}</td>
+                <td className="px-3 py-3 text-slate-300">{formatNumber(item.quantidade)}</td>
+                <td className="px-3 py-3 text-slate-400">{formatCurrency(item.pedagio)}</td>
+                <td className="px-3 py-3 text-slate-400">{formatCurrency(item.motorista)}</td>
+                <td className="px-3 py-3 text-slate-300">{formatCurrency(item.combustivel)}</td>
+                <td className="px-3 py-3 text-slate-400">{item.hotel ? formatCurrency(item.hotel) : '-'}</td>
+                <td className="px-3 py-3 text-slate-400 text-xs">
+                  {item.gasto_extra_valor ? (
+                    <span className="flex flex-col gap-0.5">
+                      <span className="font-medium text-slate-300">{formatCurrency(item.gasto_extra_valor)}</span>
+                      <span className="text-slate-500 italic truncate max-w-[150px]" title={item.gasto_extra_motivo}>{item.gasto_extra_motivo}</span>
+                    </span>
+                  ) : '-'}
+                </td>
+                <td className="px-3 py-3 text-blue-400 font-medium">{formatCurrency(item.valor_transportadora)}</td>
+                <td className="px-3 py-3 font-medium">
+                  <span className={item.economia >= 0 ? "text-emerald-400" : "text-red-400"}>
+                    {formatCurrency(item.economia)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <Button variant="ghost" size="icon" onClick={() => item.id && handleDelete(item.id)} className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {despesas.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-4 py-6 text-center text-slate-500 text-sm">
+                  Nenhuma despesa registrada.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

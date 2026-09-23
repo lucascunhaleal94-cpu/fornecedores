@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DespesasViagemBoard } from '@/components/DespesasViagemBoard';
 
 export default function ManutencoesPage() {
   const [manutencoes, setManutencoes] = useState<any[]>([]);
@@ -644,9 +645,12 @@ export default function ManutencoesPage() {
                 </table>
               </div>
             </div>
+            
+            {!quadro.isEquip && (
+              <DespesasViagemBoard veiculo={quadro.id === 'caminhao' ? 'CAMINHAO' : 'STRADA'} />
+            )}
           </div>
         ))}
-
         {/* Botão de Histórico */}
         <div className="flex justify-center mt-4">
           <Button 
