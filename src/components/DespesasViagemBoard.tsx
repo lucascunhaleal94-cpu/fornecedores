@@ -270,7 +270,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
 
   const chartData = useMemo(() => {
     if (chartMode === 'MENSAL') {
-      const dailyData: Record<string, { dayStr: string, economia: number, rawDate: Date }> = {};
+      const dailyData: Record<string, { dayStr: string, economia: number, gasto: number, transportadora: number, rawDate: Date }> = {};
       const [y, m] = selectedMonth.split('-');
       
       despesas.forEach(item => {
@@ -283,16 +283,21 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
           const dayKey = `${year}-${month}-${day}`;
           const dayStr = `${day}/${month}`;
           
-          if (!dailyData[dayKey]) dailyData[dayKey] = { dayStr, economia: 0, rawDate: d };
+          if (!dailyData[dayKey]) dailyData[dayKey] = { dayStr, economia: 0, gasto: 0, transportadora: 0, rawDate: d };
           dailyData[dayKey].economia += Number(item.economia || 0);
+          dailyData[dayKey].transportadora += Number(item.valor_transportadora || 0);
+          const gastoItem = Number(item.pedagio || 0) + Number(item.motorista || 0) + Number(item.combustivel || 0) + Number(item.hotel || 0) + Number(item.gasto_extra_valor || 0);
+          dailyData[dayKey].gasto += gastoItem;
         }
       });
       return Object.values(dailyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
         name: d.dayStr,
         economia: d.economia,
+        gasto: d.gasto,
+        transportadora: d.transportadora
       }));
     } else {
-      const monthlyData: Record<string, { monthStr: string, economia: number, rawDate: Date }> = {};
+      const monthlyData: Record<string, { monthStr: string, economia: number, gasto: number, transportadora: number, rawDate: Date }> = {};
       
       despesas.forEach(item => {
         if (!item.data) return;
@@ -304,19 +309,29 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
           const monthKey = `${year}-${month}`;
           const monthStr = d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase();
           
-          if (!monthlyData[monthKey]) monthlyData[monthKey] = { monthStr, economia: 0, rawDate: d };
+          if (!monthlyData[monthKey]) monthlyData[monthKey] = { monthStr, economia: 0, gasto: 0, transportadora: 0, rawDate: d };
           monthlyData[monthKey].economia += Number(item.economia || 0);
+          monthlyData[monthKey].transportadora += Number(item.valor_transportadora || 0);
+          const gastoItem = Number(item.pedagio || 0) + Number(item.motorista || 0) + Number(item.combustivel || 0) + Number(item.hotel || 0) + Number(item.gasto_extra_valor || 0);
+          monthlyData[monthKey].gasto += gastoItem;
         }
       });
       return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
         name: d.monthStr,
         economia: d.economia,
+        gasto: d.gasto,
+        transportadora: d.transportadora
       }));
     }
   }, [despesas, chartMode, selectedMonth, selectedYear]);
 
-  const totalEconomia = useMemo(() => {
-    return chartData.reduce((acc, curr) => acc + curr.economia, 0);
+  const totals = useMemo(() => {
+    return chartData.reduce((acc, curr) => {
+      acc.economia += curr.economia;
+      acc.gasto += curr.gasto;
+      acc.transportadora += curr.transportadora;
+      return acc;
+    }, { economia: 0, gasto: 0, transportadora: 0 });
   }, [chartData]);
 
   const years = Array.from(new Set(despesas.map(d => {
@@ -656,8 +671,20 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
           <div className="flex gap-6 mb-6">
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 font-medium">ECONOMIA TOTAL {chartMode === 'MENSAL' ? 'DO MÊS' : 'DO ANO'}</span>
-              <span className={`text-xl font-bold ${totalEconomia >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                R$ {totalEconomia.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+              <span className={`text-xl font-bold ${totals.economia >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                R$ {totals.economia.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs text-blue-400/70 font-medium">VALOR DA TRANSPORTADORA</span>
+              <span className="text-lg font-semibold text-blue-400">
+                R$ {totals.transportadora.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs text-orange-400/70 font-medium">VALOR TOTAL GASTO</span>
+              <span className="text-lg font-semibold text-orange-400">
+                R$ {totals.gasto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </span>
             </div>
           </div>
