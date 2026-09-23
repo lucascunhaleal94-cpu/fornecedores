@@ -424,106 +424,7 @@ export default function ManutencoesPage() {
           </Select>
         </div>
 
-        {/* Gráficos Mensais */}
-        {(chartDataCaminhao.length > 0 || chartDataStrada.length > 0 || chartDataEquipamento.length > 0) && (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {chartDataCaminhao.length > 0 && (
-              <div className="bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-blue-400" /> Custos Mensais - Caminhão
-                </h2>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartDataCaminhao} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value/1000}k`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                        itemStyle={{ color: '#cbd5e1' }}
-                        cursor={{fill: '#ffffff05'}}
-                        formatter={(value: any, name: string, props: any) => {
-                          if (name === 'Preventiva' || name === 'Corretiva') {
-                            const percent = name === 'Preventiva' ? props.payload.prevPercent : props.payload.corrPercent;
-                            return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percent}%)`, name];
-                          }
-                          return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, name];
-                        }}
-                      />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                      <Bar dataKey="Preventiva" stackId="a" fill="#3b82f6" />
-                      <Bar dataKey="Corretiva" stackId="a" fill="#ef4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-            
-            {chartDataStrada.length > 0 && (
-              <div className="bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-amber-400" /> Custos Mensais - Strada
-                </h2>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartDataStrada} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value/1000}k`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                        itemStyle={{ color: '#cbd5e1' }}
-                        cursor={{fill: '#ffffff05'}}
-                        formatter={(value: any, name: string, props: any) => {
-                          if (name === 'Preventiva' || name === 'Corretiva') {
-                            const percent = name === 'Preventiva' ? props.payload.prevPercent : props.payload.corrPercent;
-                            return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percent}%)`, name];
-                          }
-                          return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, name];
-                        }}
-                      />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                      <Bar dataKey="Preventiva" stackId="a" fill="#3b82f6" />
-                      <Bar dataKey="Corretiva" stackId="a" fill="#ef4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
 
-            {chartDataEquipamento.length > 0 && (
-              <div className="bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
-                  <Settings2 className="w-5 h-5 text-purple-400" /> Custos Mensais - Equipamentos
-                </h2>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartDataEquipamento} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value/1000}k`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                        itemStyle={{ color: '#cbd5e1' }}
-                        cursor={{fill: '#ffffff05'}}
-                        formatter={(value: any, name: string, props: any) => {
-                          if (name === 'Preventiva' || name === 'Corretiva') {
-                            const percent = name === 'Preventiva' ? props.payload.prevPercent : props.payload.corrPercent;
-                            return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percent}%)`, name];
-                          }
-                          return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, name];
-                        }}
-                      />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                      <Bar dataKey="Preventiva" stackId="a" fill="#3b82f6" />
-                      <Bar dataKey="Corretiva" stackId="a" fill="#ef4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Quadros Principais */}
         {[
@@ -646,6 +547,47 @@ export default function ManutencoesPage() {
               </div>
             </div>
             
+            {/* Chart para o respectivo quadro */}
+            {(() => {
+              const cData = quadro.id === 'caminhao' ? chartDataCaminhao : (quadro.id === 'strada' ? chartDataStrada : chartDataEquipamento);
+              const cColor = quadro.id === 'caminhao' ? 'text-blue-400' : (quadro.id === 'strada' ? 'text-amber-400' : 'text-purple-400');
+              const cIcon = quadro.id === 'equipamento' ? <Settings2 className={`w-5 h-5 ${cColor}`} /> : <Wrench className={`w-5 h-5 ${cColor}`} />;
+
+              if (cData.length === 0) return null;
+
+              return (
+                <div className="mt-6 mb-4 bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm">
+                  <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
+                    {cIcon} Custos Mensais - {quadro.title}
+                  </h2>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                        <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value/1000}k`} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                          itemStyle={{ color: '#cbd5e1' }}
+                          cursor={{fill: '#ffffff05'}}
+                          formatter={(value: any, name: string, props: any) => {
+                            if (name === 'Preventiva' || name === 'Corretiva') {
+                              const percent = name === 'Preventiva' ? props.payload.prevPercent : props.payload.corrPercent;
+                              return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percent}%)`, name];
+                            }
+                            return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, name];
+                          }}
+                        />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                        <Bar dataKey="Preventiva" stackId="a" fill="#3b82f6" />
+                        <Bar dataKey="Corretiva" stackId="a" fill="#ef4444" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              );
+            })()}
+
             {!quadro.isEquip && (
               <DespesasViagemBoard veiculo={quadro.id === 'caminhao' ? 'CAMINHAO' : 'STRADA'} />
             )}
