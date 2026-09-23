@@ -66,8 +66,6 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     const loc = (novaDespesa.local || '').toUpperCase();
     
     let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
-    if (loc === 'RJ') pedagioNum = 126.00;
-    else if (loc === 'BH') pedagioNum = 109.20;
 
     const quantidadeNum = novaDespesa.quantidadeStr !== '' ? Number(novaDespesa.quantidadeStr) : 0;
     const valor_transportadora = quantidadeNum * 0.88;
@@ -94,14 +92,12 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     }
 
     const loc = (novaDespesa.local || '').toUpperCase();
-    if (loc !== 'RJ' && loc !== 'BH' && novaDespesa.pedagioStr === '') {
-      toast.error('Informe o valor do pedágio para este local.');
+    if (novaDespesa.pedagioStr === '') {
+      toast.error('Informe o valor do pedágio.');
       return;
     }
 
     let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
-    if (loc === 'RJ') pedagioNum = 126.00;
-    else if (loc === 'BH') pedagioNum = 109.20;
 
     const payload = {
       veiculo,
@@ -218,7 +214,19 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   type="text"
                   placeholder="Ex: RJ"
                   value={novaDespesa.local || ''}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, local: e.target.value.toUpperCase()})}
+                  onChange={(e) => {
+                    const newLocal = e.target.value.toUpperCase();
+                    let newPedagioStr = novaDespesa.pedagioStr;
+                    const oldLocal = (novaDespesa.local || '').toUpperCase();
+                    
+                    // Auto-fill toll when typing RJ or BH
+                    if (newLocal === 'RJ') newPedagioStr = '126';
+                    else if (newLocal === 'BH') newPedagioStr = '109.2';
+                    // Clear toll if it was automatically filled and the user changes the location to something else
+                    else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagioStr = '';
+
+                    setNovaDespesa({...novaDespesa, local: newLocal, pedagioStr: newPedagioStr});
+                  }}
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[60px] uppercase"
                   maxLength={2}
                 />
@@ -236,8 +244,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                 <Input 
                   type="number"
                   placeholder="R$"
-                  disabled={novaDespesa.local === 'RJ' || novaDespesa.local === 'BH'}
-                  value={novaDespesa.local === 'RJ' ? '126' : (novaDespesa.local === 'BH' ? '109.2' : novaDespesa.pedagioStr)}
+                  value={novaDespesa.pedagioStr}
                   onChange={(e) => setNovaDespesa({...novaDespesa, pedagioStr: e.target.value})}
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                 />
