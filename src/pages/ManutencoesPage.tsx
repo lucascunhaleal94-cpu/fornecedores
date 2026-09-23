@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DespesasViagemBoard } from '@/components/DespesasViagemBoard';
+import { ManutencaoChart } from '@/components/ManutencaoChart';
 
 export default function ManutencoesPage() {
   const [manutencoes, setManutencoes] = useState<any[]>([]);
@@ -275,46 +276,7 @@ export default function ManutencoesPage() {
     return dataOriginal;
   };
 
-  const processMonthlyData = (data: any[]) => {
-    const monthlyData: Record<string, { monthStr: string, total: number, prev: number, corr: number, rawDate: Date }> = {};
-    
-    data.forEach(m => {
-      if (!m.valor_gasto) return;
-      const dateVal = m.data_realizacao || m.created_at;
-      if (!dateVal) return;
-      
-      const d = new Date(dateVal);
-      if (isNaN(d.getTime())) return;
-      
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const monthStr = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase();
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { monthStr, total: 0, prev: 0, corr: 0, rawDate: d };
-      }
-      
-      const val = Number(m.valor_gasto);
-      monthlyData[monthKey].total += val;
-      if (m.tipo === 'PREVENTIVA') {
-        monthlyData[monthKey].prev += val;
-      } else {
-        monthlyData[monthKey].corr += val;
-      }
-    });
 
-    return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
-      name: d.monthStr,
-      'Preventiva': d.prev,
-      'Corretiva': d.corr,
-      total: d.total,
-      prevPercent: d.total > 0 ? ((d.prev / d.total) * 100).toFixed(1) : 0,
-      corrPercent: d.total > 0 ? ((d.corr / d.total) * 100).toFixed(1) : 0,
-    }));
-  };
-
-  const chartDataCaminhao = processMonthlyData(manutencoesConcluidas.filter(m => m.veiculo !== 'STRADA' && m.veiculo !== 'EQUIPAMENTO'));
-  const chartDataStrada = processMonthlyData(manutencoesConcluidas.filter(m => m.veiculo === 'STRADA'));
-  const chartDataEquipamento = processMonthlyData(manutencoesConcluidas.filter(m => m.veiculo === 'EQUIPAMENTO'));
 
   return (
     <div className="min-h-full w-full bg-[#0b0f19] text-white flex flex-col relative z-20 overflow-y-auto animate-in fade-in duration-500">
@@ -548,45 +510,12 @@ export default function ManutencoesPage() {
             </div>
             
             {/* Chart para o respectivo quadro */}
-            {(() => {
-              const cData = quadro.id === 'caminhao' ? chartDataCaminhao : (quadro.id === 'strada' ? chartDataStrada : chartDataEquipamento);
-              const cColor = quadro.id === 'caminhao' ? 'text-blue-400' : (quadro.id === 'strada' ? 'text-amber-400' : 'text-purple-400');
-              const cIcon = quadro.id === 'equipamento' ? <Settings2 className={`w-5 h-5 ${cColor}`} /> : <Wrench className={`w-5 h-5 ${cColor}`} />;
-
-              if (cData.length === 0) return null;
-
-              return (
-                <div className="mt-6 mb-4 bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm">
-                  <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
-                    {cIcon} Custos Mensais - {quadro.title}
-                  </h2>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={cData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                        <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value/1000}k`} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                          itemStyle={{ color: '#cbd5e1' }}
-                          cursor={{fill: '#ffffff05'}}
-                          formatter={(value: any, name: string, props: any) => {
-                            if (name === 'Preventiva' || name === 'Corretiva') {
-                              const percent = name === 'Preventiva' ? props.payload.prevPercent : props.payload.corrPercent;
-                              return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percent}%)`, name];
-                            }
-                            return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, name];
-                          }}
-                        />
-                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                        <Bar dataKey="Preventiva" stackId="a" fill="#3b82f6" />
-                        <Bar dataKey="Corretiva" stackId="a" fill="#ef4444" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              );
-            })()}
+            <ManutencaoChart 
+              data={quadro.id === 'caminhao' ? manutencoesConcluidas.filter(m => m.veiculo !== 'STRADA' && m.veiculo !== 'EQUIPAMENTO') : (quadro.id === 'strada' ? manutencoesConcluidas.filter(m => m.veiculo === 'STRADA') : manutencoesConcluidas.filter(m => m.veiculo === 'EQUIPAMENTO'))} 
+              veiculoId={quadro.id} 
+              veiculoTitle={quadro.title} 
+              isEquip={quadro.isEquip} 
+            />
 
             {!quadro.isEquip && (
               <DespesasViagemBoard veiculo={quadro.id === 'caminhao' ? 'CAMINHAO' : 'STRADA'} />

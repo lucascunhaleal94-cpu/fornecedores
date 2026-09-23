@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, CheckCircle2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Despesa {
   id?: string;
@@ -174,32 +175,70 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     return `${day}/${month}/${year}`;
   };
 
-  const processMonthlyData = (data: Despesa[]) => {
-    const monthlyData: Record<string, { monthStr: string, economia: number, rawDate: Date }> = {};
-    
-    data.forEach(m => {
-      if (!m.data) return;
-      const [year, month, day] = m.data.split('-');
-      if (!year || !month || !day) return;
-      
-      const d = new Date(Number(year), Number(month) - 1, 1);
-      const monthKey = `${year}-${month}`;
-      const monthStr = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase();
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { monthStr, economia: 0, rawDate: d };
-      }
-      
-      monthlyData[monthKey].economia += Number(m.economia || 0);
-    });
+  const [chartMode, setChartMode] = useState<'MENSAL' | 'ANUAL'>('MENSAL');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString());
 
-    return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
-      name: d.monthStr,
-      economia: d.economia,
-    }));
-  };
+  const chartData = useMemo(() => {
+    if (chartMode === 'MENSAL') {
+      const dailyData: Record<string, { dayStr: string, economia: number, rawDate: Date }> = {};
+      const [y, m] = selectedMonth.split('-');
+      
+      despesas.forEach(item => {
+        if (!item.data) return;
+        const [year, month, day] = item.data.split('-');
+        if (!year || !month || !day) return;
+        
+        if (year === y && month === m) {
+          const d = new Date(Number(year), Number(month) - 1, Number(day));
+          const dayKey = `${year}-${month}-${day}`;
+          const dayStr = `${day}/${month}`;
+          
+          if (!dailyData[dayKey]) dailyData[dayKey] = { dayStr, economia: 0, rawDate: d };
+          dailyData[dayKey].economia += Number(item.economia || 0);
+        }
+      });
+      return Object.values(dailyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
+        name: d.dayStr,
+        economia: d.economia,
+      }));
+    } else {
+      const monthlyData: Record<string, { monthStr: string, economia: number, rawDate: Date }> = {};
+      
+      despesas.forEach(item => {
+        if (!item.data) return;
+        const [year, month, day] = item.data.split('-');
+        if (!year || !month || !day) return;
+        
+        if (year === selectedYear) {
+          const d = new Date(Number(year), Number(month) - 1, 1);
+          const monthKey = `${year}-${month}`;
+          const monthStr = d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase();
+          
+          if (!monthlyData[monthKey]) monthlyData[monthKey] = { monthStr, economia: 0, rawDate: d };
+          monthlyData[monthKey].economia += Number(item.economia || 0);
+        }
+      });
+      return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
+        name: d.monthStr,
+        economia: d.economia,
+      }));
+    }
+  }, [despesas, chartMode, selectedMonth, selectedYear]);
 
-  const chartData = processMonthlyData(despesas);
+  const totalEconomia = useMemo(() => {
+    return chartData.reduce((acc, curr) => acc + curr.economia, 0);
+  }, [chartData]);
+
+  const years = Array.from(new Set(despesas.map(d => {
+    if (!d.data) return null;
+    return d.data.split('-')[0];
+  }).filter(Boolean))).sort().reverse() as string[];
+  if (years.length === 0) years.push(new Date().getFullYear().toString());
+  if (!years.includes(selectedYear)) years.push(selectedYear);
 
   return (
     <div className="mt-4 mb-8">
@@ -375,34 +414,83 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       </div>
     </div>
 
-    {chartData.length > 0 && (
+    {chartData.length > 0 || true ? (
         <div className="mt-6 bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm mb-6 animate-in fade-in duration-500">
-          <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-            Economia Mensal - {veiculo}
-          </h2>
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${(value/1000).toFixed(1)}k`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                  itemStyle={{ color: '#cbd5e1' }}
-                  cursor={{fill: '#ffffff05'}}
-                  formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Economia']}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <h2 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+              Economia {chartMode === 'MENSAL' ? 'Mensal' : 'Anual'} - {veiculo}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Select value={chartMode} onValueChange={(v: any) => setChartMode(v)}>
+                <SelectTrigger className="w-[110px] bg-black/20 border-white/10 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MENSAL">Mensal</SelectItem>
+                  <SelectItem value="ANUAL">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {chartMode === 'MENSAL' ? (
+                <Input 
+                  type="month" 
+                  value={selectedMonth} 
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className="w-[140px] bg-black/20 border-white/10 h-8 text-xs text-slate-300"
                 />
-                <Bar dataKey="economia" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.economia >= 0 ? '#10b981' : '#ef4444'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+              ) : (
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-[100px] bg-black/20 border-white/10 h-8 text-xs">
+                     <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map(y => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
+
+          <div className="flex gap-6 mb-6">
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-500 font-medium">ECONOMIA TOTAL {chartMode === 'MENSAL' ? 'DO MÊS' : 'DO ANO'}</span>
+              <span className={`text-xl font-bold ${totalEconomia >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                R$ {totalEconomia.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+              </span>
+            </div>
+          </div>
+
+          {chartData.length > 0 ? (
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                  <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${(value/1000).toFixed(1)}k`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                    itemStyle={{ color: '#cbd5e1' }}
+                    cursor={{fill: '#ffffff05'}}
+                    formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Economia']}
+                  />
+                  <Bar dataKey="economia" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.economia >= 0 ? '#10b981' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-slate-500 text-sm">
+              Nenhuma viagem registrada neste {chartMode === 'MENSAL' ? 'mês' : 'ano'}.
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
 
   </div>
   );
