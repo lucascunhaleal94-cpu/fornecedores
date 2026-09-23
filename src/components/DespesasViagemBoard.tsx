@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, CheckCircle2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface Despesa {
   id?: string;
@@ -173,8 +174,65 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     return `${day}/${month}/${year}`;
   };
 
+  const processMonthlyData = (data: Despesa[]) => {
+    const monthlyData: Record<string, { monthStr: string, economia: number, rawDate: Date }> = {};
+    
+    data.forEach(m => {
+      if (!m.data) return;
+      const [year, month, day] = m.data.split('-');
+      if (!year || !month || !day) return;
+      
+      const d = new Date(Number(year), Number(month) - 1, 1);
+      const monthKey = `${year}-${month}`;
+      const monthStr = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase();
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { monthStr, economia: 0, rawDate: d };
+      }
+      
+      monthlyData[monthKey].economia += Number(m.economia || 0);
+    });
+
+    return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
+      name: d.monthStr,
+      economia: d.economia,
+    }));
+  };
+
+  const chartData = processMonthlyData(despesas);
+
   return (
-    <div className="mt-4 bg-[#131825] border border-white/5 shadow-2xl rounded-2xl overflow-hidden relative">
+    <div className="mt-4 mb-8">
+      {chartData.length > 0 && (
+        <div className="bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm mb-6 animate-in fade-in duration-500">
+          <h2 className="text-lg font-bold text-slate-300 mb-6 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            Economia Mensal - {veiculo}
+          </h2>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${(value/1000).toFixed(1)}k`} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                  itemStyle={{ color: '#cbd5e1' }}
+                  cursor={{fill: '#ffffff05'}}
+                  formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Economia']}
+                />
+                <Bar dataKey="economia" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.economia >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-[#131825] border border-white/5 shadow-2xl rounded-2xl overflow-hidden relative">
       <div className="bg-slate-800/50 px-4 py-3 border-b border-white/5">
         <h3 className="font-bold text-slate-300 flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg>
@@ -343,5 +401,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
         </table>
       </div>
     </div>
+  </div>
   );
 }
+
