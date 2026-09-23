@@ -147,6 +147,92 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     }
   };
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
+
+  const handleEditClick = (item: Despesa) => {
+    setEditingId(item.id || null);
+    setEditFormData({
+      data: item.data,
+      local: item.local,
+      quantidadeStr: item.quantidade.toString(),
+      pedagioStr: item.pedagio.toString(),
+      motorista: item.motorista,
+      combustivelStr: item.combustivel.toString(),
+      hotelStr: item.hotel ? item.hotel.toString() : '',
+      gastoExtraStr: item.gasto_extra_valor ? item.gasto_extra_valor.toString() : '',
+      gasto_extra_motivo: item.gasto_extra_motivo || '',
+      valor_transportadora: item.valor_transportadora,
+      economia: item.economia
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editFormData.data || !editFormData.local || editFormData.quantidadeStr === '' || editFormData.combustivelStr === '') {
+      toast.error('Preencha os campos obrigatórios: Data, Local, Quantidade e Combustível.');
+      return;
+    }
+
+    if (editFormData.pedagioStr === '') {
+      toast.error('Informe o valor do pedágio.');
+      return;
+    }
+
+    const payload = {
+      data: editFormData.data,
+      local: editFormData.local.toUpperCase(),
+      quantidade: Number(editFormData.quantidadeStr),
+      pedagio: Number(editFormData.pedagioStr),
+      combustivel: Number(editFormData.combustivelStr),
+      hotel: editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0,
+      gasto_extra_valor: editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0,
+      gasto_extra_motivo: editFormData.gasto_extra_motivo || '',
+      valor_transportadora: editFormData.valor_transportadora,
+      economia: editFormData.economia
+    };
+
+    try {
+      const { error } = await supabase.from('despesas_viagem').update(payload).eq('id', editingId);
+      
+      if (error) {
+        console.error(error);
+        toast.error('Erro ao atualizar no banco.');
+      } else {
+        setDespesas(despesas.map(d => d.id === editingId ? { ...d, ...payload } : d));
+        toast.success('Despesa atualizada com sucesso!');
+      }
+      setEditingId(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro de conexão.');
+    }
+  };
+
+  useEffect(() => {
+    if (!editingId) return;
+    
+    const quantidadeNum = editFormData.quantidadeStr !== '' ? Number(editFormData.quantidadeStr) : 0;
+    const valor_transportadora = quantidadeNum * 0.88;
+
+    let pedagioNum = editFormData.pedagioStr !== '' ? Number(editFormData.pedagioStr) : 0;
+    const combustivelNum = editFormData.combustivelStr !== '' ? Number(editFormData.combustivelStr) : 0;
+    const hotelNum = editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0;
+    const gastoExtraNum = editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0;
+
+    const totalGastos = pedagioNum + 50.00 + combustivelNum + hotelNum + gastoExtraNum;
+    const economia = valor_transportadora - totalGastos;
+
+    setEditFormData((prev: any) => ({
+      ...prev,
+      valor_transportadora,
+      economia
+    }));
+  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastoExtraStr, editingId]);
+
 
   const handleDelete = async (id: string) => {
     try {
@@ -372,36 +458,149 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
             </tr>
 
             {/* Lista de Registros */}
-            {despesas.map(item => (
-              <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                <td className="px-3 py-3 text-slate-300">{item.data ? formatDate(item.data) : '-'}</td>
-                <td className="px-3 py-3 text-slate-300 font-bold uppercase">{item.local}</td>
-                <td className="px-3 py-3 text-slate-300">{formatNumber(item.quantidade)}</td>
-                <td className="px-3 py-3 text-slate-400">{formatCurrency(item.pedagio)}</td>
-                <td className="px-3 py-3 text-slate-400">{formatCurrency(item.motorista)}</td>
-                <td className="px-3 py-3 text-slate-300">{formatCurrency(item.combustivel)}</td>
-                <td className="px-3 py-3 text-slate-400">{item.hotel ? formatCurrency(item.hotel) : '-'}</td>
-                <td className="px-3 py-3 text-slate-400 text-xs">
-                  {item.gasto_extra_valor ? (
-                    <span className="flex flex-col gap-0.5">
-                      <span className="font-medium text-slate-300">{formatCurrency(item.gasto_extra_valor)}</span>
-                      <span className="text-slate-500 italic truncate max-w-[150px]" title={item.gasto_extra_motivo}>{item.gasto_extra_motivo}</span>
+            {despesas.map(item => {
+              if (item.id === editingId) {
+                return (
+                  <tr key={`edit-${item.id}`} className="border-b border-white/5 bg-slate-800/30">
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="date"
+                        value={editFormData.data || ''}
+                        onChange={(e) => setEditFormData({...editFormData, data: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[120px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="text"
+                        placeholder="Ex: RJ"
+                        value={editFormData.local || ''}
+                        onChange={(e) => {
+                          const newLocal = e.target.value.toUpperCase();
+                          let newPedagioStr = editFormData.pedagioStr;
+                          const oldLocal = (editFormData.local || '').toUpperCase();
+                          if (newLocal === 'RJ') newPedagioStr = '126';
+                          else if (newLocal === 'BH') newPedagioStr = '109.2';
+                          else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagioStr = '';
+                          setEditFormData({...editFormData, local: newLocal, pedagioStr: newPedagioStr});
+                        }}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[60px] uppercase"
+                        maxLength={2}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="number"
+                        placeholder="KG"
+                        value={editFormData.quantidadeStr}
+                        onChange={(e) => setEditFormData({...editFormData, quantidadeStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={editFormData.pedagioStr}
+                        onChange={(e) => setEditFormData({...editFormData, pedagioStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2 font-medium text-slate-300">
+                      {formatCurrency(50)}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={editFormData.combustivelStr}
+                        onChange={(e) => setEditFormData({...editFormData, combustivelStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[90px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={editFormData.hotelStr}
+                        onChange={(e) => setEditFormData({...editFormData, hotelStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2 flex gap-1">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={editFormData.gastoExtraStr}
+                        onChange={(e) => setEditFormData({...editFormData, gastoExtraStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
+                      />
+                      <Input 
+                        type="text"
+                        placeholder="Motivo..."
+                        value={editFormData.gasto_extra_motivo || ''}
+                        onChange={(e) => setEditFormData({...editFormData, gasto_extra_motivo: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
+                      />
+                    </td>
+                    <td className="px-2 py-2 font-medium text-blue-400 whitespace-nowrap">
+                      {formatCurrency(editFormData.valor_transportadora || 0)}
+                    </td>
+                    <td className="px-2 py-2 font-medium whitespace-nowrap">
+                      <span className={(editFormData.economia || 0) >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        {formatCurrency(editFormData.economia || 0)}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" onClick={handleSaveEdit} className="h-8 w-8 bg-emerald-500 hover:bg-emerald-600 text-white">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={handleCancelEdit} className="h-8 w-8 text-slate-400 hover:text-white">
+                          <Plus className="w-4 h-4 rotate-45" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                  <td className="px-3 py-3 text-slate-300">{item.data ? formatDate(item.data) : '-'}</td>
+                  <td className="px-3 py-3 text-slate-300 font-bold uppercase">{item.local}</td>
+                  <td className="px-3 py-3 text-slate-300">{formatNumber(item.quantidade)}</td>
+                  <td className="px-3 py-3 text-slate-400">{formatCurrency(item.pedagio)}</td>
+                  <td className="px-3 py-3 text-slate-400">{formatCurrency(item.motorista)}</td>
+                  <td className="px-3 py-3 text-slate-300">{formatCurrency(item.combustivel)}</td>
+                  <td className="px-3 py-3 text-slate-400">{item.hotel ? formatCurrency(item.hotel) : '-'}</td>
+                  <td className="px-3 py-3 text-slate-400 text-xs">
+                    {item.gasto_extra_valor ? (
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-medium text-slate-300">{formatCurrency(item.gasto_extra_valor)}</span>
+                        <span className="text-slate-500 italic truncate max-w-[150px]" title={item.gasto_extra_motivo}>{item.gasto_extra_motivo}</span>
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td className="px-3 py-3 text-blue-400 font-medium">{formatCurrency(item.valor_transportadora)}</td>
+                  <td className="px-3 py-3 font-medium">
+                    <span className={item.economia >= 0 ? "text-emerald-400" : "text-red-400"}>
+                      {formatCurrency(item.economia)}
                     </span>
-                  ) : '-'}
-                </td>
-                <td className="px-3 py-3 text-blue-400 font-medium">{formatCurrency(item.valor_transportadora)}</td>
-                <td className="px-3 py-3 font-medium">
-                  <span className={item.economia >= 0 ? "text-emerald-400" : "text-red-400"}>
-                    {formatCurrency(item.economia)}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-right">
-                  <Button variant="ghost" size="icon" onClick={() => item.id && handleDelete(item.id)} className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(item)} className="h-8 w-8 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => item.id && handleDelete(item.id)} className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {despesas.length === 0 && (
               <tr>
                 <td colSpan={11} className="px-4 py-6 text-center text-slate-500 text-sm">
