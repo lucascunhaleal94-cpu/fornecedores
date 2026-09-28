@@ -27,8 +27,8 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastoExtraStr?: string }>({
-    motorista: 50,
+  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastoExtraStr?: string, motoristaStr?: string }>({
+    motoristaStr: '50',
     gasto_extra_motivo: '',
     pedagioStr: '',
     quantidadeStr: '',
@@ -75,17 +75,18 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     const combustivelNum = novaDespesa.combustivelStr !== '' ? Number(novaDespesa.combustivelStr) : 0;
     const hotelNum = novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0;
     const gastoExtraNum = novaDespesa.gastoExtraStr !== '' ? Number(novaDespesa.gastoExtraStr) : 0;
+    const motoristaNum = novaDespesa.motoristaStr !== '' ? Number(novaDespesa.motoristaStr) : 0;
 
-    const totalGastos = pedagioNum + 50.00 + combustivelNum + hotelNum + gastoExtraNum;
+    const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
     const economia = valor_transportadora - totalGastos;
 
     setNovaDespesa(prev => ({
       ...prev,
-      motorista: 50.00,
+      motorista: motoristaNum,
       valor_transportadora,
       economia
     }));
-  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastoExtraStr]);
+  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastoExtraStr, novaDespesa.motoristaStr]);
 
   const handleAddRow = async () => {
     if (!novaDespesa.data || !novaDespesa.local || novaDespesa.quantidadeStr === '' || novaDespesa.combustivelStr === '') {
@@ -131,7 +132,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
 
       // Reset
       setNovaDespesa({
-        motorista: 50,
+        motoristaStr: '50',
         gasto_extra_motivo: '',
         pedagioStr: '',
         quantidadeStr: '',
@@ -157,6 +158,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       local: item.local,
       quantidadeStr: item.quantidade.toString(),
       pedagioStr: item.pedagio.toString(),
+      motoristaStr: item.motorista.toString(),
       motorista: item.motorista,
       combustivelStr: item.combustivel.toString(),
       hotelStr: item.hotel ? item.hotel.toString() : '',
@@ -187,6 +189,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       local: editFormData.local.toUpperCase(),
       quantidade: Number(editFormData.quantidadeStr),
       pedagio: Number(editFormData.pedagioStr),
+      motorista: Number(editFormData.motoristaStr),
       combustivel: Number(editFormData.combustivelStr),
       hotel: editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0,
       gasto_extra_valor: editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0,
@@ -222,16 +225,18 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     const combustivelNum = editFormData.combustivelStr !== '' ? Number(editFormData.combustivelStr) : 0;
     const hotelNum = editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0;
     const gastoExtraNum = editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0;
+    const motoristaNum = editFormData.motoristaStr !== '' ? Number(editFormData.motoristaStr) : 0;
 
-    const totalGastos = pedagioNum + 50.00 + combustivelNum + hotelNum + gastoExtraNum;
+    const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
     const economia = valor_transportadora - totalGastos;
 
     setEditFormData((prev: any) => ({
       ...prev,
+      motorista: motoristaNum,
       valor_transportadora,
       economia
     }));
-  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastoExtraStr, editingId]);
+  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastoExtraStr, editFormData.motoristaStr, editingId]);
 
 
   const handleDelete = async (id: string) => {
@@ -420,8 +425,14 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                 />
               </td>
-              <td className="px-2 py-2 font-medium text-slate-300">
-                {formatCurrency(50)}
+              <td className="px-2 py-2">
+                <Input 
+                  type="number"
+                  placeholder="R$"
+                  value={novaDespesa.motoristaStr}
+                  onChange={(e) => setNovaDespesa({...novaDespesa, motoristaStr: e.target.value})}
+                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                />
               </td>
               <td className="px-2 py-2">
                 <Input 
@@ -521,8 +532,14 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                         className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                       />
                     </td>
-                    <td className="px-2 py-2 font-medium text-slate-300">
-                      {formatCurrency(50)}
+                    <td className="px-2 py-2">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={editFormData.motoristaStr}
+                        onChange={(e) => setEditFormData({...editFormData, motoristaStr: e.target.value})}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                      />
                     </td>
                     <td className="px-2 py-2">
                       <Input 
