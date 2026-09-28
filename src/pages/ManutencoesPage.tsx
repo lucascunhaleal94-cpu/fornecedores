@@ -231,6 +231,17 @@ export default function ManutencoesPage() {
   const getDisplayStatus = (m: any) => {
     if (m.status === 'concluida') return m.status;
     
+    if (m.demanda === 'SAZONAL' && m.data_realizacao) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [year, month, day] = String(m.data_realizacao).split('-');
+      if (year && month && day) {
+         const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+         if (localDate < today) return 'atrasada';
+         return m.status;
+      }
+    }
+
     if (m.veiculo === 'EQUIPAMENTO') {
       if (m.km_proxima) {
         const today = new Date();

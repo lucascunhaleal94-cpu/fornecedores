@@ -111,6 +111,36 @@ export function useNotifications() {
     const kmAtualStrada = parseInt(localStorage.getItem('kmAtualStrada') || '0') || 0;
 
     manutencoes.forEach(m => {
+      if (m.demanda === 'SAZONAL') {
+        if (!m.data_realizacao) return;
+        
+        const prazoDate = startOfDay(parseLocalDate(m.data_realizacao));
+        const diffDays = differenceInDays(prazoDate, today);
+
+        if (isBefore(prazoDate, today)) {
+          alerts.push({
+            id: `manut-atraso-${m.id}`,
+            title: 'Manutenção Atrasada',
+            description: `A manutenção "${m.servico}" passou do prazo.`,
+            type: 'danger',
+            category: 'Manutenções',
+            date: prazoDate,
+            link: '/manutencoes'
+          });
+        } else if (diffDays >= 0 && diffDays <= 3) {
+          alerts.push({
+            id: `manut-prazo-${m.id}`,
+            title: 'Prazo Próximo (Manutenção)',
+            description: `A manutenção "${m.servico}" vence em ${diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}.`,
+            type: 'warning',
+            category: 'Manutenções',
+            date: prazoDate,
+            link: '/manutencoes'
+          });
+        }
+        return;
+      }
+
       if (m.veiculo === 'EQUIPAMENTO') {
         if (!m.km_proxima) return;
         
