@@ -69,6 +69,7 @@ const MultiValueInput = ({ values, onChange, placeholder }: { values: string[], 
 
 export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [manutencoes, setManutencoes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagios?: string[], quantidadeStr?: string, combustiveis?: string[], hoteis?: string[], gastosExtras?: {valorStr: string, motivo: string}[], motoristas?: string[] }>({
@@ -90,7 +91,6 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Ignora erro se tabela não existir
         console.error("Tabela despesas_viagem pode não existir ainda.", error);
       } else if (data) {
         setDespesas(data);
@@ -102,8 +102,25 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     }
   };
 
+  const fetchManutencoes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manutencoes')
+        .select('*')
+        .eq('veiculo', veiculo)
+        .eq('status', 'concluida');
+      
+      if (!error && data) {
+        setManutencoes(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchDespesas();
+    fetchManutencoes();
   }, [veiculo]);
 
   // Recalcular campos automáticos
@@ -397,6 +414,57 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       return acc;
     }, { economia: 0, gasto: 0, transportadora: 0 });
   }, [chartData]);
+
+  const chartDataTotal = useMemo(() => {
+    const monthlyData: Record<string, { monthStr: string, economiaViagem: number, custoManutencao: number, rawDate: Date }> = {};
+    
+    // We always want to show all months for the selectedYear
+    for (let i = 1; i <= 12; i++) {
+      const monthNum = i.toString().padStart(2, '0');
+      const d = new Date(Number(selectedYear), i - 1, 1);
+      const monthKey = `${selectedYear}-${monthNum}`;
+      const monthStr = d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase();
+      monthlyData[monthKey] = { monthStr, economiaViagem: 0, custoManutencao: 0, rawDate: d };
+    }
+
+    despesas.forEach(item => {
+      if (!item.data) return;
+      const [year, month] = item.data.split('-');
+      if (year === selectedYear) {
+        const monthKey = `${year}-${month}`;
+        if (monthlyData[monthKey]) {
+          monthlyData[monthKey].economiaViagem += Number(item.economia || 0);
+        }
+      }
+    });
+
+    manutencoes.forEach(item => {
+      if (!item.data_realizacao) return;
+      const [year, month] = item.data_realizacao.split('-');
+      if (year === selectedYear) {
+        const monthKey = `${year}-${month}`;
+        if (monthlyData[monthKey]) {
+          monthlyData[monthKey].custoManutencao += Number(item.valor_gasto || 0);
+        }
+      }
+    });
+
+    return Object.values(monthlyData).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime()).map(d => ({
+      name: d.monthStr,
+      economiaTotal: d.economiaViagem - d.custoManutencao,
+      economiaViagem: d.economiaViagem,
+      custoManutencao: d.custoManutencao
+    }));
+  }, [despesas, manutencoes, selectedYear]);
+
+  const totalsTotal = useMemo(() => {
+    return chartDataTotal.reduce((acc, curr) => {
+      acc.economiaViagem += curr.economiaViagem;
+      acc.custoManutencao += curr.custoManutencao;
+      acc.economiaTotal += curr.economiaTotal;
+      return acc;
+    }, { economiaViagem: 0, custoManutencao: 0, economiaTotal: 0 });
+  }, [chartDataTotal]);
 
   const years = Array.from(new Set(despesas.map(d => {
     if (!d.data) return null;
@@ -786,7 +854,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h2 className="text-lg font-bold text-slate-300 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-              Economia {chartMode === 'MENSAL' ? 'Mensal' : 'Anual'} - {veiculo}
+              ECONOMIA VIAGEM - {veiculo}
             </h2>
             <div className="flex items-center gap-2">
               <Select value={chartMode} onValueChange={(v: any) => setChartMode(v)}>
@@ -870,6 +938,63 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
           )}
         </div>
       ) : null}
+        {chartDataTotal.length > 0 ? (
+          <div className="mt-6 bg-[#131825] p-6 rounded-2xl border border-white/5 shadow-sm mb-6 animate-in fade-in duration-500">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <h2 className="text-lg font-bold text-slate-300 flex items-center gap-2 uppercase">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                ECONOMIA TOTAL - {veiculo}
+              </h2>
+            </div>
+            
+            <div className="flex flex-wrap gap-6 mb-6 mt-2">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">ECONOMIA TOTAL ({selectedYear})</span>
+                <span className={`text-xl font-bold ${totalsTotal.economiaTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  R$ {totalsTotal.economiaTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">ECONOMIA VIAGEM ({selectedYear})</span>
+                <span className="text-xl font-bold text-blue-400">
+                  R$ {totalsTotal.economiaViagem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">CUSTO DE MANUTENÇÃO ({selectedYear})</span>
+                <span className="text-xl font-bold text-amber-400">
+                  R$ {totalsTotal.custoManutencao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
+              </div>
+            </div>
+
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartDataTotal} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                  <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" tick={{fill: '#64748b', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${(value/1000).toFixed(1)}k`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                    itemStyle={{ color: '#cbd5e1' }}
+                    cursor={{fill: '#ffffff05'}}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'economiaTotal') return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Economia Total'];
+                      if (name === 'economiaViagem') return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Economia Viagens'];
+                      if (name === 'custoManutencao') return [`R$ ${Number(value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 'Custo Manutenção'];
+                      return [value, name];
+                    }}
+                  />
+                  <Bar dataKey="economiaTotal" radius={[4, 4, 0, 0]}>
+                    {chartDataTotal.map((entry, index) => (
+                      <Cell key={`cell-total-${index}`} fill={entry.economiaTotal >= 0 ? '#10b981' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : null}
 
   </div>
   );
