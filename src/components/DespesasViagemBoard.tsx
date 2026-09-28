@@ -23,16 +23,60 @@ interface Despesa {
   economia: number;
 }
 
+const MultiValueInput = ({ values, onChange, placeholder }: { values: string[], onChange: (v: string[]) => void, placeholder?: string }) => {
+  return (
+    <div className="flex flex-col gap-1 min-w-[70px]">
+      {(values || []).map((val, idx) => (
+        <div key={idx} className="flex gap-1">
+          <Input 
+            type="number"
+            placeholder={placeholder || "R$"}
+            value={val}
+            onChange={(e) => {
+              const updated = [...values];
+              updated[idx] = e.target.value;
+              onChange(updated);
+            }}
+            className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+          />
+          {idx > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10 shrink-0"
+              onClick={() => {
+                const updated = [...values];
+                updated.splice(idx, 1);
+                onChange(updated);
+              }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-6 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 self-start px-2 py-0"
+        onClick={() => onChange([...(values || []), ''])}
+      >
+        <Plus className="w-3 h-3" />
+      </Button>
+    </div>
+  );
+};
+
 export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastosExtras?: {valorStr: string, motivo: string}[], motoristaStr?: string }>({
-    motoristaStr: '50',
-    pedagioStr: '',
+  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagios?: string[], quantidadeStr?: string, combustiveis?: string[], hoteis?: string[], gastosExtras?: {valorStr: string, motivo: string}[], motoristas?: string[] }>({
+    motoristas: ['50'],
+    pedagios: [''],
     quantidadeStr: '',
-    combustivelStr: '',
-    hotelStr: '',
+    combustiveis: [''],
+    hoteis: [''],
     gastosExtras: [{ valorStr: '', motivo: '' }],
   });
 
@@ -66,15 +110,15 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   useEffect(() => {
     const loc = (novaDespesa.local || '').toUpperCase();
     
-    let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
+    let pedagioNum = (novaDespesa.pedagios || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
     const quantidadeNum = novaDespesa.quantidadeStr !== '' ? Number(novaDespesa.quantidadeStr) : 0;
     const valor_transportadora = quantidadeNum * 0.88;
 
-    const combustivelNum = novaDespesa.combustivelStr !== '' ? Number(novaDespesa.combustivelStr) : 0;
-    const hotelNum = novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0;
+    const combustivelNum = (novaDespesa.combustiveis || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const hotelNum = (novaDespesa.hoteis || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
     const gastoExtraNum = novaDespesa.gastosExtras ? novaDespesa.gastosExtras.reduce((sum, g) => sum + (Number(g.valorStr) || 0), 0) : 0;
-    const motoristaNum = novaDespesa.motoristaStr !== '' ? Number(novaDespesa.motoristaStr) : 0;
+    const motoristaNum = (novaDespesa.motoristas || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
     const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
     const economia = valor_transportadora - totalGastos;
@@ -85,21 +129,21 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       valor_transportadora,
       economia
     }));
-  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastosExtras, novaDespesa.motoristaStr]);
+  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagios, novaDespesa.combustiveis, novaDespesa.hoteis, novaDespesa.gastosExtras, novaDespesa.motoristas]);
 
   const handleAddRow = async () => {
-    if (!novaDespesa.data || !novaDespesa.local || novaDespesa.quantidadeStr === '' || novaDespesa.combustivelStr === '') {
+    if (!novaDespesa.data || !novaDespesa.local || novaDespesa.quantidadeStr === '' || !(novaDespesa.combustiveis || []).some(c => c !== '')) {
       toast.error('Preencha os campos obrigatórios: Data, Local, Quantidade e Combustível.');
       return;
     }
 
     const loc = (novaDespesa.local || '').toUpperCase();
-    if (novaDespesa.pedagioStr === '') {
+    if (!(novaDespesa.pedagios || []).some(p => p !== '')) {
       toast.error('Informe o valor do pedágio.');
       return;
     }
 
-    let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
+    let pedagioNum = (novaDespesa.pedagios || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
     
     const validGastosExtras = (novaDespesa.gastosExtras || []).filter(g => g.valorStr !== '' || g.motivo !== '');
     const gasto_extra_valor = validGastosExtras.reduce((sum, g) => sum + (Number(g.valorStr) || 0), 0);
@@ -112,8 +156,8 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       quantidade: Number(novaDespesa.quantidadeStr),
       pedagio: pedagioNum,
       motorista: novaDespesa.motorista,
-      combustivel: Number(novaDespesa.combustivelStr),
-      hotel: novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0,
+      combustivel: (novaDespesa.combustiveis || []).reduce((sum, v) => sum + (Number(v) || 0), 0),
+      hotel: (novaDespesa.hoteis || []).reduce((sum, v) => sum + (Number(v) || 0), 0),
       gasto_extra_valor,
       gasto_extra_motivo,
       valor_transportadora: novaDespesa.valor_transportadora,
@@ -135,11 +179,11 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
 
       // Reset
       setNovaDespesa({
-        motoristaStr: '50',
-        pedagioStr: '',
+        motoristas: ['50'],
+        pedagios: [''],
         quantidadeStr: '',
-        combustivelStr: '',
-        hotelStr: '',
+        combustiveis: [''],
+        hoteis: [''],
         gastosExtras: [{ valorStr: '', motivo: '' }],
         data: '',
         local: ''
@@ -169,11 +213,11 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       data: item.data,
       local: item.local,
       quantidadeStr: item.quantidade.toString(),
-      pedagioStr: item.pedagio.toString(),
-      motoristaStr: item.motorista.toString(),
+      pedagios: [item.pedagio.toString()],
+      motoristas: [item.motorista.toString()],
       motorista: item.motorista,
-      combustivelStr: item.combustivel.toString(),
-      hotelStr: item.hotel ? item.hotel.toString() : '',
+      combustiveis: [item.combustivel.toString()],
+      hoteis: [item.hotel ? item.hotel.toString() : ''],
       gastosExtras: parsedGastosExtras,
       valor_transportadora: item.valor_transportadora,
       economia: item.economia
@@ -185,12 +229,12 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   };
 
   const handleSaveEdit = async () => {
-    if (!editFormData.data || !editFormData.local || editFormData.quantidadeStr === '' || editFormData.combustivelStr === '') {
+    if (!editFormData.data || !editFormData.local || editFormData.quantidadeStr === '' || !(editFormData.combustiveis || []).some((c: string) => c !== '')) {
       toast.error('Preencha os campos obrigatórios: Data, Local, Quantidade e Combustível.');
       return;
     }
 
-    if (editFormData.pedagioStr === '') {
+    if (!(editFormData.pedagios || []).some((p: string) => p !== '')) {
       toast.error('Informe o valor do pedágio.');
       return;
     }
@@ -203,10 +247,10 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       data: editFormData.data,
       local: editFormData.local.toUpperCase(),
       quantidade: Number(editFormData.quantidadeStr),
-      pedagio: Number(editFormData.pedagioStr),
-      motorista: Number(editFormData.motoristaStr),
-      combustivel: Number(editFormData.combustivelStr),
-      hotel: editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0,
+      pedagio: (editFormData.pedagios || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0),
+      motorista: (editFormData.motoristas || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0),
+      combustivel: (editFormData.combustiveis || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0),
+      hotel: (editFormData.hoteis || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0),
       gasto_extra_valor,
       gasto_extra_motivo,
       valor_transportadora: editFormData.valor_transportadora,
@@ -236,11 +280,11 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     const quantidadeNum = editFormData.quantidadeStr !== '' ? Number(editFormData.quantidadeStr) : 0;
     const valor_transportadora = quantidadeNum * 0.88;
 
-    let pedagioNum = editFormData.pedagioStr !== '' ? Number(editFormData.pedagioStr) : 0;
-    const combustivelNum = editFormData.combustivelStr !== '' ? Number(editFormData.combustivelStr) : 0;
-    const hotelNum = editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0;
+    let pedagioNum = (editFormData.pedagios || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
+    const combustivelNum = (editFormData.combustiveis || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
+    const hotelNum = (editFormData.hoteis || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
     const gastoExtraNum = editFormData.gastosExtras ? editFormData.gastosExtras.reduce((sum: number, g: any) => sum + (Number(g.valorStr) || 0), 0) : 0;
-    const motoristaNum = editFormData.motoristaStr !== '' ? Number(editFormData.motoristaStr) : 0;
+    const motoristaNum = (editFormData.motoristas || []).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
 
     const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
     const economia = valor_transportadora - totalGastos;
@@ -251,7 +295,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       valor_transportadora,
       economia
     }));
-  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastosExtras, editFormData.motoristaStr, editingId]);
+  }, [editFormData.quantidadeStr, editFormData.pedagios, editFormData.combustiveis, editFormData.hoteis, editFormData.gastosExtras, editFormData.motoristas, editingId]);
 
 
   const handleDelete = async (id: string) => {
@@ -407,16 +451,16 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   value={novaDespesa.local || ''}
                   onChange={(e) => {
                     const newLocal = e.target.value.toUpperCase();
-                    let newPedagioStr = novaDespesa.pedagioStr;
+                    let newPedagios = novaDespesa.pedagios ? [...novaDespesa.pedagios] : [''];
                     const oldLocal = (novaDespesa.local || '').toUpperCase();
                     
                     // Auto-fill toll when typing RJ or BH
-                    if (newLocal === 'RJ') newPedagioStr = '126';
-                    else if (newLocal === 'BH') newPedagioStr = '109.2';
+                    if (newLocal === 'RJ') newPedagios = ['126'];
+                    else if (newLocal === 'BH') newPedagios = ['109.2'];
                     // Clear toll if it was automatically filled and the user changes the location to something else
-                    else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagioStr = '';
+                    else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagios = [''];
 
-                    setNovaDespesa({...novaDespesa, local: newLocal, pedagioStr: newPedagioStr});
+                    setNovaDespesa({...novaDespesa, local: newLocal, pedagios: newPedagios});
                   }}
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[60px] uppercase"
                   maxLength={2}
@@ -431,40 +475,28 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                 />
               </td>
-              <td className="px-2 py-2">
-                <Input 
-                  type="number"
-                  placeholder="R$"
-                  value={novaDespesa.pedagioStr}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, pedagioStr: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+              <td className="px-2 py-2 align-top">
+                <MultiValueInput 
+                  values={novaDespesa.pedagios || []} 
+                  onChange={(v) => setNovaDespesa({...novaDespesa, pedagios: v})} 
                 />
               </td>
-              <td className="px-2 py-2">
-                <Input 
-                  type="number"
-                  placeholder="R$"
-                  value={novaDespesa.motoristaStr}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, motoristaStr: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+              <td className="px-2 py-2 align-top">
+                <MultiValueInput 
+                  values={novaDespesa.motoristas || []} 
+                  onChange={(v) => setNovaDespesa({...novaDespesa, motoristas: v})} 
                 />
               </td>
-              <td className="px-2 py-2">
-                <Input 
-                  type="number"
-                  placeholder="R$"
-                  value={novaDespesa.combustivelStr}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, combustivelStr: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[90px]"
+              <td className="px-2 py-2 align-top">
+                <MultiValueInput 
+                  values={novaDespesa.combustiveis || []} 
+                  onChange={(v) => setNovaDespesa({...novaDespesa, combustiveis: v})} 
                 />
               </td>
-              <td className="px-2 py-2">
-                <Input 
-                  type="number"
-                  placeholder="R$"
-                  value={novaDespesa.hotelStr}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, hotelStr: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+              <td className="px-2 py-2 align-top">
+                <MultiValueInput 
+                  values={novaDespesa.hoteis || []} 
+                  onChange={(v) => setNovaDespesa({...novaDespesa, hoteis: v})} 
                 />
               </td>
               <td className="px-2 py-2 align-top">
@@ -557,12 +589,12 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                         value={editFormData.local || ''}
                         onChange={(e) => {
                           const newLocal = e.target.value.toUpperCase();
-                          let newPedagioStr = editFormData.pedagioStr;
+                          let newPedagios = editFormData.pedagios ? [...editFormData.pedagios] : [''];
                           const oldLocal = (editFormData.local || '').toUpperCase();
-                          if (newLocal === 'RJ') newPedagioStr = '126';
-                          else if (newLocal === 'BH') newPedagioStr = '109.2';
-                          else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagioStr = '';
-                          setEditFormData({...editFormData, local: newLocal, pedagioStr: newPedagioStr});
+                          if (newLocal === 'RJ') newPedagios = ['126'];
+                          else if (newLocal === 'BH') newPedagios = ['109.2'];
+                          else if (oldLocal === 'RJ' || oldLocal === 'BH') newPedagios = [''];
+                          setEditFormData({...editFormData, local: newLocal, pedagios: newPedagios});
                         }}
                         className="h-8 text-xs bg-black/20 border-white/10 text-white w-[60px] uppercase"
                         maxLength={2}
@@ -577,40 +609,28 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                         className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input 
-                        type="number"
-                        placeholder="R$"
-                        value={editFormData.pedagioStr}
-                        onChange={(e) => setEditFormData({...editFormData, pedagioStr: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                    <td className="px-2 py-2 align-top">
+                      <MultiValueInput 
+                        values={editFormData.pedagios || []} 
+                        onChange={(v) => setEditFormData({...editFormData, pedagios: v})} 
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input 
-                        type="number"
-                        placeholder="R$"
-                        value={editFormData.motoristaStr}
-                        onChange={(e) => setEditFormData({...editFormData, motoristaStr: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                    <td className="px-2 py-2 align-top">
+                      <MultiValueInput 
+                        values={editFormData.motoristas || []} 
+                        onChange={(v) => setEditFormData({...editFormData, motoristas: v})} 
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input 
-                        type="number"
-                        placeholder="R$"
-                        value={editFormData.combustivelStr}
-                        onChange={(e) => setEditFormData({...editFormData, combustivelStr: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[90px]"
+                    <td className="px-2 py-2 align-top">
+                      <MultiValueInput 
+                        values={editFormData.combustiveis || []} 
+                        onChange={(v) => setEditFormData({...editFormData, combustiveis: v})} 
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input 
-                        type="number"
-                        placeholder="R$"
-                        value={editFormData.hotelStr}
-                        onChange={(e) => setEditFormData({...editFormData, hotelStr: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
+                    <td className="px-2 py-2 align-top">
+                      <MultiValueInput 
+                        values={editFormData.hoteis || []} 
+                        onChange={(v) => setEditFormData({...editFormData, hoteis: v})} 
                       />
                     </td>
                     <td className="px-2 py-2 align-top">
