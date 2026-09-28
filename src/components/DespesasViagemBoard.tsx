@@ -27,14 +27,13 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastoExtraStr?: string, motoristaStr?: string }>({
+  const [novaDespesa, setNovaDespesa] = useState<Partial<Despesa> & { pedagioStr?: string, quantidadeStr?: string, combustivelStr?: string, hotelStr?: string, gastosExtras?: {valorStr: string, motivo: string}[], motoristaStr?: string }>({
     motoristaStr: '50',
-    gasto_extra_motivo: '',
     pedagioStr: '',
     quantidadeStr: '',
     combustivelStr: '',
     hotelStr: '',
-    gastoExtraStr: '',
+    gastosExtras: [{ valorStr: '', motivo: '' }],
   });
 
   const fetchDespesas = async () => {
@@ -74,7 +73,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
 
     const combustivelNum = novaDespesa.combustivelStr !== '' ? Number(novaDespesa.combustivelStr) : 0;
     const hotelNum = novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0;
-    const gastoExtraNum = novaDespesa.gastoExtraStr !== '' ? Number(novaDespesa.gastoExtraStr) : 0;
+    const gastoExtraNum = novaDespesa.gastosExtras ? novaDespesa.gastosExtras.reduce((sum, g) => sum + (Number(g.valorStr) || 0), 0) : 0;
     const motoristaNum = novaDespesa.motoristaStr !== '' ? Number(novaDespesa.motoristaStr) : 0;
 
     const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
@@ -86,7 +85,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       valor_transportadora,
       economia
     }));
-  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastoExtraStr, novaDespesa.motoristaStr]);
+  }, [novaDespesa.local, novaDespesa.quantidadeStr, novaDespesa.pedagioStr, novaDespesa.combustivelStr, novaDespesa.hotelStr, novaDespesa.gastosExtras, novaDespesa.motoristaStr]);
 
   const handleAddRow = async () => {
     if (!novaDespesa.data || !novaDespesa.local || novaDespesa.quantidadeStr === '' || novaDespesa.combustivelStr === '') {
@@ -101,6 +100,10 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     }
 
     let pedagioNum = novaDespesa.pedagioStr !== '' ? Number(novaDespesa.pedagioStr) : 0;
+    
+    const validGastosExtras = (novaDespesa.gastosExtras || []).filter(g => g.valorStr !== '' || g.motivo !== '');
+    const gasto_extra_valor = validGastosExtras.reduce((sum, g) => sum + (Number(g.valorStr) || 0), 0);
+    const gasto_extra_motivo = validGastosExtras.length > 0 ? JSON.stringify(validGastosExtras) : '';
 
     const payload = {
       veiculo,
@@ -111,8 +114,8 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       motorista: novaDespesa.motorista,
       combustivel: Number(novaDespesa.combustivelStr),
       hotel: novaDespesa.hotelStr !== '' ? Number(novaDespesa.hotelStr) : 0,
-      gasto_extra_valor: novaDespesa.gastoExtraStr !== '' ? Number(novaDespesa.gastoExtraStr) : 0,
-      gasto_extra_motivo: novaDespesa.gasto_extra_motivo || '',
+      gasto_extra_valor,
+      gasto_extra_motivo,
       valor_transportadora: novaDespesa.valor_transportadora,
       economia: novaDespesa.economia
     };
@@ -133,12 +136,11 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       // Reset
       setNovaDespesa({
         motoristaStr: '50',
-        gasto_extra_motivo: '',
         pedagioStr: '',
         quantidadeStr: '',
         combustivelStr: '',
         hotelStr: '',
-        gastoExtraStr: '',
+        gastosExtras: [{ valorStr: '', motivo: '' }],
         data: '',
         local: ''
       });
@@ -153,6 +155,16 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
 
   const handleEditClick = (item: Despesa) => {
     setEditingId(item.id || null);
+
+    let parsedGastosExtras = [{ valorStr: '', motivo: '' }];
+    if (item.gasto_extra_motivo && item.gasto_extra_motivo.startsWith('[')) {
+      try {
+        parsedGastosExtras = JSON.parse(item.gasto_extra_motivo);
+      } catch(e) {}
+    } else if (item.gasto_extra_valor || item.gasto_extra_motivo) {
+      parsedGastosExtras = [{ valorStr: item.gasto_extra_valor ? item.gasto_extra_valor.toString() : '', motivo: item.gasto_extra_motivo || '' }];
+    }
+
     setEditFormData({
       data: item.data,
       local: item.local,
@@ -162,8 +174,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       motorista: item.motorista,
       combustivelStr: item.combustivel.toString(),
       hotelStr: item.hotel ? item.hotel.toString() : '',
-      gastoExtraStr: item.gasto_extra_valor ? item.gasto_extra_valor.toString() : '',
-      gasto_extra_motivo: item.gasto_extra_motivo || '',
+      gastosExtras: parsedGastosExtras,
       valor_transportadora: item.valor_transportadora,
       economia: item.economia
     });
@@ -184,6 +195,10 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       return;
     }
 
+    const validGastosExtras = (editFormData.gastosExtras || []).filter((g: any) => g.valorStr !== '' || g.motivo !== '');
+    const gasto_extra_valor = validGastosExtras.reduce((sum: number, g: any) => sum + (Number(g.valorStr) || 0), 0);
+    const gasto_extra_motivo = validGastosExtras.length > 0 ? JSON.stringify(validGastosExtras) : '';
+
     const payload = {
       data: editFormData.data,
       local: editFormData.local.toUpperCase(),
@@ -192,8 +207,8 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       motorista: Number(editFormData.motoristaStr),
       combustivel: Number(editFormData.combustivelStr),
       hotel: editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0,
-      gasto_extra_valor: editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0,
-      gasto_extra_motivo: editFormData.gasto_extra_motivo || '',
+      gasto_extra_valor,
+      gasto_extra_motivo,
       valor_transportadora: editFormData.valor_transportadora,
       economia: editFormData.economia
     };
@@ -224,7 +239,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
     let pedagioNum = editFormData.pedagioStr !== '' ? Number(editFormData.pedagioStr) : 0;
     const combustivelNum = editFormData.combustivelStr !== '' ? Number(editFormData.combustivelStr) : 0;
     const hotelNum = editFormData.hotelStr !== '' ? Number(editFormData.hotelStr) : 0;
-    const gastoExtraNum = editFormData.gastoExtraStr !== '' ? Number(editFormData.gastoExtraStr) : 0;
+    const gastoExtraNum = editFormData.gastosExtras ? editFormData.gastosExtras.reduce((sum: number, g: any) => sum + (Number(g.valorStr) || 0), 0) : 0;
     const motoristaNum = editFormData.motoristaStr !== '' ? Number(editFormData.motoristaStr) : 0;
 
     const totalGastos = pedagioNum + motoristaNum + combustivelNum + hotelNum + gastoExtraNum;
@@ -236,7 +251,7 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
       valor_transportadora,
       economia
     }));
-  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastoExtraStr, editFormData.motoristaStr, editingId]);
+  }, [editFormData.quantidadeStr, editFormData.pedagioStr, editFormData.combustivelStr, editFormData.hotelStr, editFormData.gastosExtras, editFormData.motoristaStr, editingId]);
 
 
   const handleDelete = async (id: string) => {
@@ -452,21 +467,60 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                 />
               </td>
-              <td className="px-2 py-2 flex gap-1">
-                <Input 
-                  type="number"
-                  placeholder="R$"
-                  value={novaDespesa.gastoExtraStr}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, gastoExtraStr: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
-                />
-                <Input 
-                  type="text"
-                  placeholder="Motivo..."
-                  value={novaDespesa.gasto_extra_motivo || ''}
-                  onChange={(e) => setNovaDespesa({...novaDespesa, gasto_extra_motivo: e.target.value})}
-                  className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
-                />
+              <td className="px-2 py-2 align-top">
+                <div className="flex flex-col gap-1 min-w-[200px]">
+                  {(novaDespesa.gastosExtras || []).map((gasto, idx) => (
+                    <div key={`gasto-novo-${idx}`} className="flex gap-1">
+                      <Input 
+                        type="number"
+                        placeholder="R$"
+                        value={gasto.valorStr}
+                        onChange={(e) => {
+                          const updated = [...(novaDespesa.gastosExtras || [])];
+                          updated[idx].valorStr = e.target.value;
+                          setNovaDespesa({...novaDespesa, gastosExtras: updated});
+                        }}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
+                      />
+                      <Input 
+                        type="text"
+                        placeholder="Motivo..."
+                        value={gasto.motivo}
+                        onChange={(e) => {
+                          const updated = [...(novaDespesa.gastosExtras || [])];
+                          updated[idx].motivo = e.target.value;
+                          setNovaDespesa({...novaDespesa, gastosExtras: updated});
+                        }}
+                        className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
+                      />
+                      {idx > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10 shrink-0"
+                          onClick={() => {
+                            const updated = [...(novaDespesa.gastosExtras || [])];
+                            updated.splice(idx, 1);
+                            setNovaDespesa({...novaDespesa, gastosExtras: updated});
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 self-start px-2 py-0"
+                    onClick={() => {
+                      const updated = [...(novaDespesa.gastosExtras || []), { valorStr: '', motivo: '' }];
+                      setNovaDespesa({...novaDespesa, gastosExtras: updated});
+                    }}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Add Gasto
+                  </Button>
+                </div>
               </td>
               <td className="px-2 py-2 font-medium text-blue-400 whitespace-nowrap">
                 {formatCurrency(novaDespesa.valor_transportadora || 0)}
@@ -559,21 +613,60 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                         className="h-8 text-xs bg-black/20 border-white/10 text-white w-[80px]"
                       />
                     </td>
-                    <td className="px-2 py-2 flex gap-1">
-                      <Input 
-                        type="number"
-                        placeholder="R$"
-                        value={editFormData.gastoExtraStr}
-                        onChange={(e) => setEditFormData({...editFormData, gastoExtraStr: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
-                      />
-                      <Input 
-                        type="text"
-                        placeholder="Motivo..."
-                        value={editFormData.gasto_extra_motivo || ''}
-                        onChange={(e) => setEditFormData({...editFormData, gasto_extra_motivo: e.target.value})}
-                        className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
-                      />
+                    <td className="px-2 py-2 align-top">
+                      <div className="flex flex-col gap-1 min-w-[200px]">
+                        {(editFormData.gastosExtras || []).map((gasto: any, idx: number) => (
+                          <div key={`gasto-edit-${idx}`} className="flex gap-1">
+                            <Input 
+                              type="number"
+                              placeholder="R$"
+                              value={gasto.valorStr}
+                              onChange={(e) => {
+                                const updated = [...(editFormData.gastosExtras || [])];
+                                updated[idx].valorStr = e.target.value;
+                                setEditFormData({...editFormData, gastosExtras: updated});
+                              }}
+                              className="h-8 text-xs bg-black/20 border-white/10 text-white w-[70px]"
+                            />
+                            <Input 
+                              type="text"
+                              placeholder="Motivo..."
+                              value={gasto.motivo}
+                              onChange={(e) => {
+                                const updated = [...(editFormData.gastosExtras || [])];
+                                updated[idx].motivo = e.target.value;
+                                setEditFormData({...editFormData, gastosExtras: updated});
+                              }}
+                              className="h-8 text-xs bg-black/20 border-white/10 text-white flex-1 min-w-[100px]"
+                            />
+                            {idx > 0 && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10 shrink-0"
+                                onClick={() => {
+                                  const updated = [...(editFormData.gastosExtras || [])];
+                                  updated.splice(idx, 1);
+                                  setEditFormData({...editFormData, gastosExtras: updated});
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 self-start px-2 py-0"
+                          onClick={() => {
+                            const updated = [...(editFormData.gastosExtras || []), { valorStr: '', motivo: '' }];
+                            setEditFormData({...editFormData, gastosExtras: updated});
+                          }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" /> Add Gasto
+                        </Button>
+                      </div>
                     </td>
                     <td className="px-2 py-2 font-medium text-blue-400 whitespace-nowrap">
                       {formatCurrency(editFormData.valor_transportadora || 0)}
@@ -606,12 +699,35 @@ export function DespesasViagemBoard({ veiculo }: { veiculo: string }) {
                   <td className="px-3 py-3 text-slate-400">{formatCurrency(item.motorista)}</td>
                   <td className="px-3 py-3 text-slate-300">{formatCurrency(item.combustivel)}</td>
                   <td className="px-3 py-3 text-slate-400">{item.hotel ? formatCurrency(item.hotel) : '-'}</td>
-                  <td className="px-3 py-3 text-slate-400 text-xs">
+                  <td className="px-3 py-3 text-slate-400 text-xs align-top">
                     {item.gasto_extra_valor ? (
-                      <span className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-1">
                         <span className="font-medium text-slate-300">{formatCurrency(item.gasto_extra_valor)}</span>
-                        <span className="text-slate-500 italic truncate max-w-[150px]" title={item.gasto_extra_motivo}>{item.gasto_extra_motivo}</span>
-                      </span>
+                        <div className="flex flex-col gap-0.5">
+                          {(() => {
+                            let parsed = [];
+                            try {
+                              if (item.gasto_extra_motivo && item.gasto_extra_motivo.startsWith('[')) {
+                                parsed = JSON.parse(item.gasto_extra_motivo);
+                              }
+                            } catch(e) {}
+                            
+                            if (parsed.length > 0) {
+                              return parsed.map((p: any, i: number) => (
+                                <span key={i} className="text-slate-500 italic text-[10px] break-words max-w-[150px]" title={p.motivo}>
+                                  • {p.motivo ? `${p.motivo}: ` : ''}{p.valorStr ? `R$ ${p.valorStr}` : ''}
+                                </span>
+                              ));
+                            } else {
+                              return (
+                                <span className="text-slate-500 italic break-words max-w-[150px]" title={item.gasto_extra_motivo}>
+                                  {item.gasto_extra_motivo}
+                                </span>
+                              );
+                            }
+                          })()}
+                        </div>
+                      </div>
                     ) : '-'}
                   </td>
                   <td className="px-3 py-3 text-blue-400 font-medium">{formatCurrency(item.valor_transportadora)}</td>
