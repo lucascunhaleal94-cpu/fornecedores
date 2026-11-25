@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { NotaFiscal } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { getCachedData, setCachedData, FORCE_SYNC_EVENT } from '@/lib/localCache';
+
+const CACHE_KEY = 'notas_fiscais_v1';
 
 interface NotaFiscalContextType {
   notasFiscais: NotaFiscal[];
@@ -20,7 +23,16 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscal[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTodasNotas = async () => {
+  const fetchTodasNotas = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = await getCachedData<NotaFiscal[]>(CACHE_KEY);
+      if (cached) {
+        setNotasFiscais(cached.data);
+        setLoading(false);
+        if (cached.isFresh) return;
+      }
+    }
+
     setLoading(true);
     const { data, error } = await supabase.from('notas_fiscais').select('*').order('data_emissao', { ascending: false });
     if (error) {
@@ -28,20 +40,26 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
       setLoading(false);
       return;
     }
-    if (data) setNotasFiscais(data as NotaFiscal[]);
+    if (data) {
+      setNotasFiscais(data as NotaFiscal[]);
+      await setCachedData(CACHE_KEY, data);
+    }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchTodasNotas();
-  }, []);
+    fetchTodasNotas(false);
+    const onForceSync = () => fetchTodasNotas(true);
+    window.addEventListener(FORCE_SYNC_EVENT, onForceSync);
+    return () => window.removeEventListener(FORCE_SYNC_EVENT, onForceSync);
+  }, [fetchTodasNotas]);
 
   const fetchNotasByFornecedor = (fornecedorId: string) => {
     return notasFiscais.filter(nota => nota.fornecedor_id === fornecedorId);
   };
 
-  const fetchNotasFiscais = async (fornecedorId: string) => {
-    // Helper if specific refetch is needed
+  const fetchNotasFiscais = async (_fornecedorId: string) => {
+    await fetchTodasNotas(true);
   };
 
   const addNotaFiscal = async (nota: Omit<NotaFiscal, 'id' | 'createdAt'>) => {
@@ -50,15 +68,17 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
       id: 'nota-' + Date.now().toString() + Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
     };
-    
-    setNotasFiscais(prev => [newDoc, ...prev]);
-    
+
+    const next = [newDoc, ...notasFiscais];
+    setNotasFiscais(next);
+    setCachedData(CACHE_KEY, next);
+
     const { error } = await supabase.from('notas_fiscais').insert([newDoc]);
     if (error) {
       toast.error("Erro inserindo Nota Fiscal: " + error.message);
       return { success: false };
     }
-    
+
     return { success: true, id: newDoc.id };
   };
 
@@ -69,17 +89,17 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
     const safeFileName = fileName ? fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) : 'upload';
     const importPrefix = `imp-${safeFileName}-${Date.now()}`;
 
-    novasNotas.forEach((n, index) => {
+    novasNotas.forEach((n) => {
       const existing = notasFiscais.find(
-        ex => ex.fornecedor_id === n.fornecedor_id && 
-              ex.numero_nota === n.numero_nota && 
+        ex => ex.fornecedor_id === n.fornecedor_id &&
+              ex.numero_nota === n.numero_nota &&
               ex.codigo === n.codigo
       );
 
       if (existing) {
         docsToUpdate.push({
           ...existing,
-          ...n // update with new values (quantidade, valor, etc)
+          ...n
         });
       } else {
         docsToInsert.push({
@@ -90,7 +110,6 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
       }
     });
 
-    // We do updates sequentially or via bulk if possible. Supabase allows bulk upsert, but we can just use updates
     let updateError = false;
     for (const doc of docsToUpdate) {
       const { error } = await supabase.from('notas_fiscais').update({
@@ -100,7 +119,7 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
         valor_unitario: doc.valor_unitario,
         motivo: doc.motivo
       }).eq('id', doc.id);
-      
+
       if (error) {
         console.error("Error updating nota:", error);
         updateError = true;
@@ -118,42 +137,45 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
 
     if (insertError || updateError) {
       toast.error("Alguns erros ocorreram durante a importação. A página será atualizada.");
-      fetchTodasNotas();
+      fetchTodasNotas(true);
       return { success: false, count: 0, updatedCount: 0 };
     }
 
-    // Update local state
-    setNotasFiscais(prev => {
-      const next = [...prev];
-      docsToUpdate.forEach(updatedDoc => {
-        const idx = next.findIndex(n => n.id === updatedDoc.id);
-        if (idx !== -1) next[idx] = updatedDoc;
-      });
-      return [...docsToInsert, ...next];
+    const next = [...notasFiscais];
+    docsToUpdate.forEach(updatedDoc => {
+      const idx = next.findIndex(n => n.id === updatedDoc.id);
+      if (idx !== -1) next[idx] = updatedDoc;
     });
+    const finalList = [...docsToInsert, ...next];
+    setNotasFiscais(finalList);
+    setCachedData(CACHE_KEY, finalList);
 
     return { success: true, count: docsToInsert.length, updatedCount: docsToUpdate.length };
   };
 
   const deleteNotaFiscal = async (id: string) => {
-    setNotasFiscais(prev => prev.filter(n => n.id !== id));
-    
+    const next = notasFiscais.filter(n => n.id !== id);
+    setNotasFiscais(next);
+    setCachedData(CACHE_KEY, next);
+
     const { error } = await supabase.from('notas_fiscais').delete().eq('id', id);
     if (error) {
       toast.error("Erro excluindo Nota Fiscal: " + error.message);
       return { success: false };
     }
-    
+
     return { success: true };
   };
 
   const updateNotaFiscal = async (id: string, updates: Partial<NotaFiscal>) => {
-    setNotasFiscais(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
-    
+    const next = notasFiscais.map(n => n.id === id ? { ...n, ...updates } : n);
+    setNotasFiscais(next);
+    setCachedData(CACHE_KEY, next);
+
     const { error } = await supabase.from('notas_fiscais').update(updates).eq('id', id);
     if (error) {
       toast.error("Erro ao atualizar Nota Fiscal: " + error.message);
-      fetchTodasNotas();
+      fetchTodasNotas(true);
       return { success: false };
     }
     return { success: true };
@@ -166,7 +188,9 @@ export function NotaFiscalProvider({ children }: { children: React.ReactNode }) 
       addNotaFiscal,
       importNotasFiscais,
       updateNotaFiscal,
-      deleteNotaFiscal
+      deleteNotaFiscal,
+      fetchNotasFiscais,
+      loading
     }}>
       {children}
     </NotaFiscalContext.Provider>

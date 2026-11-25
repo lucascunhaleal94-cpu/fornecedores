@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { clearAllCache } from '@/lib/localCache';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    await clearAllCache();
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error('Erro ao sair: ' + error.message);

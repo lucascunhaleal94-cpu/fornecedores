@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/contexts/LeadContext';
 import { toast } from 'sonner';
+import { processAttachmentFile } from '@/lib/fileCompression';
 
 const leadSchema = z.object({
   empresa: z.string().min(1, 'Empresa é obrigatória'),
@@ -38,8 +39,9 @@ interface LeadDialogProps {
 }
 
 export function LeadDialog({ open, onOpenChange, leadToEdit }: LeadDialogProps) {
-  const { addLead, updateLead } = useLeads();
+  const { addLead, updateLead, loadLeadAttachments } = useLeads();
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const [attachmentsModified, setAttachmentsModified] = useState(false);
 
   const {
     register,
@@ -57,6 +59,7 @@ export function LeadDialog({ open, onOpenChange, leadToEdit }: LeadDialogProps) 
   // Effect to populate form when editing
   React.useEffect(() => {
     if (open) {
+      setAttachmentsModified(false);
       if (leadToEdit) {
         setValue('empresa', leadToEdit.empresa || '');
         setValue('cnpj', leadToEdit.cnpj || '');
@@ -72,6 +75,9 @@ export function LeadDialog({ open, onOpenChange, leadToEdit }: LeadDialogProps) 
         setValue('responsavel', leadToEdit.responsavel || '');
         setValue('observacoes', leadToEdit.observacoes || '');
         setAttachments(leadToEdit.attachments || []);
+        loadLeadAttachments(leadToEdit.id).then((loaded) => {
+          setAttachments(loaded);
+        });
       } else {
         setAttachments([]);
         reset({
@@ -91,48 +97,50 @@ export function LeadDialog({ open, onOpenChange, leadToEdit }: LeadDialogProps) 
         });
       }
     }
-  }, [open, leadToEdit, setValue, reset]);
+  }, [open, leadToEdit, setValue, reset, loadLeadAttachments]);
 
   const onSubmit = (data: LeadFormData) => {
-    const payload = { ...data, attachments };
-    
     if (leadToEdit) {
+      const payload = attachmentsModified ? { ...data, attachments } : data;
       updateLead(leadToEdit.id, payload as Partial<Lead>);
       toast.success('Lead atualizado com sucesso!');
     } else {
+      const payload = { ...data, attachments };
       addLead(payload as unknown as Omit<Lead, 'id' | 'createdAt'>);
       toast.success('Lead cadastrado com sucesso!');
     }
     onOpenChange(false);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        let type: ProjectAttachment['type'] = 'other';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        else if (file.type === 'application/pdf') type = 'pdf';
-        
-        setAttachments(prev => [...prev, {
-          id: 'attach-' + Date.now() + Math.random(),
-          name: file.name,
-          type,
-          url: base64
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
+    const fileList = Array.from(files);
     e.target.value = '';
+
+    for (const file of fileList) {
+      const dataUrl = await processAttachmentFile(file);
+      if (!dataUrl) continue;
+
+      let type: ProjectAttachment['type'] = 'other';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type === 'application/pdf') type = 'pdf';
+
+      setAttachments(prev => [...prev, {
+        id: 'attach-' + Date.now() + Math.random(),
+        name: file.name,
+        type,
+        url: dataUrl
+      }]);
+      setAttachmentsModified(true);
+    }
   };
 
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(a => a.id !== id));
+    setAttachmentsModified(true);
   };
 
   const AttachmentIcon = ({ type }: { type: ProjectAttachment['type'] }) => {

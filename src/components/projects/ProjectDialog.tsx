@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Paperclip, X, File, Image as ImageIcon, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { processAttachmentFile } from "@/lib/fileCompression";
 
 interface ProjectDialogProps {
   open: boolean;
@@ -34,9 +35,11 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
   const [prazo, setPrazo] = useState("");
   const [obs, setObs] = useState("");
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const [attachmentsModified, setAttachmentsModified] = useState(false);
 
   useEffect(() => {
     if (open) {
+      setAttachmentsModified(false);
       if (projectToEdit) {
         setDescricao(projectToEdit.descricao);
         setResponsavel(projectToEdit.responsavel);
@@ -57,54 +60,55 @@ const ProjectDialog = ({ open, onOpenChange, projectToEdit }: ProjectDialogProps
     }
   }, [open, projectToEdit]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        let type: ProjectAttachment['type'] = 'other';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        else if (file.type === 'application/pdf') type = 'pdf';
-        
-        setAttachments(prev => [...prev, {
-          id: 'attach-' + Date.now() + Math.random(),
-          name: file.name,
-          type,
-          url: base64
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    // Reset file input
+    const fileList = Array.from(files);
     e.target.value = '';
+
+    for (const file of fileList) {
+      const dataUrl = await processAttachmentFile(file);
+      if (!dataUrl) continue;
+
+      let type: ProjectAttachment['type'] = 'other';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type === 'application/pdf') type = 'pdf';
+
+      setAttachments(prev => [...prev, {
+        id: 'attach-' + Date.now() + Math.random(),
+        name: file.name,
+        type,
+        url: dataUrl
+      }]);
+      setAttachmentsModified(true);
+    }
   };
 
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(a => a.id !== id));
+    setAttachmentsModified(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const projData = {
+    const baseData = {
       descricao,
       responsavel,
       departamento: departamento === "none" ? undefined : (departamento as ProjectDepartment),
       urgencia,
       prazo: prazo ? new Date(prazo).toISOString() : "",
       obs,
-      attachments
     };
 
     if (projectToEdit) {
-        updateProject(projectToEdit.id, projData);
+      updateProject(projectToEdit.id, attachmentsModified ? { ...baseData, attachments } : baseData);
     } else {
       addProject({
-        ...projData,
+        ...baseData,
+        attachments,
         status: 'PENDENTE',
       });
     }

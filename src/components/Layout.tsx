@@ -14,8 +14,11 @@ import {
   Search,
   Wrench,
   Bot,
-  Menu
+  Menu,
+  RefreshCw
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { clearAllCache, triggerForceSync } from '@/lib/localCache';
 import { NotificationCenter } from './NotificationCenter';
 import { GlobalSearch } from './GlobalSearch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +30,19 @@ export default function Layout() {
   const { user, isAdmin, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleForceSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await clearAllCache();
+      triggerForceSync();
+      toast.success('Sincronizando dados atualizados do servidor...');
+    } finally {
+      setTimeout(() => setIsSyncing(false), 1200);
+    }
+  };
 
   const SidebarContent = () => (
     <>
@@ -115,6 +131,14 @@ export default function Layout() {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4 ml-auto">
+            <button
+              onClick={handleForceSync}
+              disabled={isSyncing}
+              title="Sincronizar dados do servidor"
+              className="text-slate-400 hover:text-cyan-400 p-2 md:p-2.5 rounded-full hover:bg-cyan-500/10 transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={19} className={isSyncing ? 'animate-spin' : ''} />
+            </button>
             <button onClick={() => setSettingsOpen(true)} className="text-slate-400 hover:text-cyan-400 p-2 md:p-2.5 rounded-full hover:bg-cyan-500/10 transition-all">
               <Settings size={20} />
             </button>

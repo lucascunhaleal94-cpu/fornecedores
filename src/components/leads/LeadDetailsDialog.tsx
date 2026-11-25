@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Lead, ProjectAttachment } from "@/types";
+import { useLeads } from "@/contexts/LeadContext";
 import { 
   Dialog, 
   DialogContent, 
@@ -9,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { File, FileText, Image as ImageIcon, Download, Building, Phone, Mail, MapPin } from "lucide-react";
+import { File, FileText, Image as ImageIcon, Download, Building, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LeadDetailsDialogProps {
@@ -46,9 +47,28 @@ const formatStatus = (status: string) => {
 };
 
 const LeadDetailsDialog = ({ open, onOpenChange, lead }: LeadDetailsDialogProps) => {
+  const { loadLeadAttachments } = useLeads();
+  const [loadedAttachments, setLoadedAttachments] = useState<ProjectAttachment[]>(lead?.attachments || []);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
+
+  useEffect(() => {
+    if (!open || !lead) return;
+    let active = true;
+    setLoadingAttachments(true);
+    loadLeadAttachments(lead.id)
+      .then(full => {
+        if (active) setLoadedAttachments(full);
+      })
+      .finally(() => {
+        if (active) setLoadingAttachments(false);
+      });
+    return () => { active = false; };
+  }, [open, lead, loadLeadAttachments]);
+
   if (!lead) return null;
 
   const handleDownload = (att: ProjectAttachment) => {
+    if (!att.url) return;
     const link = document.createElement("a");
     link.href = att.url;
     link.download = att.name;
@@ -135,15 +155,21 @@ const LeadDetailsDialog = ({ open, onOpenChange, lead }: LeadDetailsDialogProps)
           )}
 
           {/* Anexos */}
-          {lead.attachments && lead.attachments.length > 0 && (
+          {(loadingAttachments || loadedAttachments.length > 0) && (
             <div>
               <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
                 <File className="w-5 h-5 mr-2" /> 
-                Anexos ({lead.attachments.length})
+                Anexos {!loadingAttachments && `(${loadedAttachments.length})`}
               </h3>
               
+              {loadingAttachments ? (
+                <div className="py-8 flex items-center justify-center gap-2 text-slate-400 border border-white/10 rounded-lg bg-[#131825]">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Carregando anexos...</span>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 gap-4">
-                {lead.attachments.map((att) => (
+                {loadedAttachments.map((att) => (
                   <div key={att.id} className="border border-white/10 rounded-lg overflow-hidden bg-[#131825]">
                     
                     {/* Header do anexo com botão baixar */}
@@ -169,7 +195,7 @@ const LeadDetailsDialog = ({ open, onOpenChange, lead }: LeadDetailsDialogProps)
 
                     {/* Preview dependendo do tipo */}
                     <div className="p-2 flex justify-center bg-white/5">
-                      {att.type === 'video' ? (
+                      {att.type === 'video' && att.url ? (
                         <video 
                           src={att.url} 
                           controls 
@@ -177,7 +203,7 @@ const LeadDetailsDialog = ({ open, onOpenChange, lead }: LeadDetailsDialogProps)
                         >
                           Seu navegador não suporta a tag de vídeo.
                         </video>
-                      ) : att.type === 'image' && att.url.startsWith('data:image') ? (
+                      ) : att.type === 'image' && att.url && att.url.startsWith('data:image') ? (
                         <img 
                           src={att.url} 
                           alt={att.name} 
@@ -194,6 +220,7 @@ const LeadDetailsDialog = ({ open, onOpenChange, lead }: LeadDetailsDialogProps)
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
         </div>

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCollaborators } from '@/contexts/CollaboratorContext';
 import { useFornecedores } from '@/contexts/FornecedorContext';
-import { Briefcase, Search, Plus, Trash2, Edit2, ChevronDown, ChevronUp, Download, FileUp, CheckCircle, AlertCircle, Clock, CheckSquare, Paperclip, X, File, Image as ImageIcon, FileText, Filter, Users } from 'lucide-react';
+import { Briefcase, Search, Plus, Trash2, Edit2, ChevronDown, ChevronUp, Download, FileUp, CheckCircle, AlertCircle, Clock, CheckSquare, Paperclip, X, File, Image as ImageIcon, FileText, Filter, Users, Loader2 } from 'lucide-react';
+import { processAttachmentFile } from '@/lib/fileCompression';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -61,7 +62,7 @@ const FilterDropdown = ({ title, options, selected, onChange }: { title: string,
 
 export default function CollaboratorsPage() {
   const { isAdmin, user } = useAuth();
-  const { collaborators, addCollaborator, updateCollaborator, deleteCollaborator, importCollaborators, deleteAllCollaborators, pendencies, addPendency, updatePendency, deletePendency } = useCollaborators();
+  const { collaborators, addCollaborator, updateCollaborator, deleteCollaborator, importCollaborators, deleteAllCollaborators, pendencies, addPendency, updatePendency, deletePendency, loadPendencyAttachments, loadedPendencyAttachmentIds } = useCollaborators();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -85,6 +86,8 @@ export default function CollaboratorsPage() {
   const [pendFornecedorId, setPendFornecedorId] = useState<string>('');
   const [pendObservacao, setPendObservacao] = useState('');
   const [pendAnexos, setPendAnexos] = useState<ProjectAttachment[]>([]);
+  const [pendAnexosModified, setPendAnexosModified] = useState(false);
+  const [loadingPendAnexosId, setLoadingPendAnexosId] = useState<string | null>(null);
 
   const [filterColabs, setFilterColabs] = useState<string[]>([]);
   const [filterMeses, setFilterMeses] = useState<string[]>([]);
@@ -325,6 +328,7 @@ export default function CollaboratorsPage() {
   });
 
   const openPendencyForm = (pend?: Pendency) => {
+    setPendAnexosModified(false);
     if (pend) {
       setIsEditingPendency(true);
       setEditingPendencyId(pend.id);
@@ -335,6 +339,11 @@ export default function CollaboratorsPage() {
       setPendFornecedorId(pend.fornecedorId || '');
       setPendObservacao(pend.observacao || '');
       setPendAnexos(pend.anexos || []);
+      if (!loadedPendencyAttachmentIds.has(pend.id)) {
+        loadPendencyAttachments(pend.id).then((loaded) => {
+          setPendAnexos(loaded);
+        });
+      }
     } else {
       setIsEditingPendency(false);
       setEditingPendencyId('');
@@ -349,34 +358,36 @@ export default function CollaboratorsPage() {
     setShowPendencyModal(true);
   };
 
-  const handlePendencyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePendencyFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        let type: ProjectAttachment['type'] = 'other';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        else if (file.type === 'application/pdf') type = 'pdf';
-        else if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) type = 'excel'; // Using excel icon for docs since it's an office file, or 'other'
-        
-        setPendAnexos(prev => [...prev, {
-          id: 'attach-' + Date.now() + Math.random(),
-          name: file.name,
-          type,
-          url: base64
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
+    const fileList = Array.from(files);
     e.target.value = '';
+
+    for (const file of fileList) {
+      const dataUrl = await processAttachmentFile(file);
+      if (!dataUrl) continue;
+
+      let type: ProjectAttachment['type'] = 'other';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type === 'application/pdf') type = 'pdf';
+      else if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) type = 'excel';
+
+      setPendAnexos(prev => [...prev, {
+        id: 'attach-' + Date.now() + Math.random(),
+        name: file.name,
+        type,
+        url: dataUrl
+      }]);
+      setPendAnexosModified(true);
+    }
   };
 
   const removePendencyAttachment = (id: string) => {
     setPendAnexos(prev => prev.filter(a => a.id !== id));
+    setPendAnexosModified(true);
   };
 
   const AttachmentIcon = ({ type }: { type: ProjectAttachment['type'] }) => {
@@ -393,15 +404,18 @@ export default function CollaboratorsPage() {
     }
 
     if (isEditingPendency) {
-      updatePendency(editingPendencyId, {
+      const payload: Partial<Pendency> = {
         colaboradoresIds: pendColabs,
         descricao: pendDescricao,
         prazo: pendPrazo,
         urgencia: pendUrgencia,
         fornecedorId: pendFornecedorId || undefined,
         observacao: pendObservacao,
-        anexos: pendAnexos
-      });
+      };
+      if (pendAnexosModified) {
+        payload.anexos = pendAnexos;
+      }
+      updatePendency(editingPendencyId, payload);
       toast.success('Pendência atualizada!');
     } else {
       addPendency({
@@ -549,7 +563,7 @@ export default function CollaboratorsPage() {
               <span className="font-semibold">Obs:</span> {p.observacao}
             </div>
           )}
-          {p.anexos && p.anexos.length > 0 && (
+          {p.anexos && p.anexos.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-2">
               {p.anexos.map(anexo => (
                 <a 
@@ -565,7 +579,30 @@ export default function CollaboratorsPage() {
                 </a>
               ))}
             </div>
-          )}
+          ) : !loadedPendencyAttachmentIds.has(p.id) ? (
+            <div className="mt-1.5">
+              <button
+                type="button"
+                disabled={loadingPendAnexosId === p.id}
+                onClick={async () => {
+                  setLoadingPendAnexosId(p.id);
+                  const loaded = await loadPendencyAttachments(p.id);
+                  setLoadingPendAnexosId(null);
+                  if (loaded.length === 0) {
+                    toast.info('Esta pendência não possui anexos.');
+                  }
+                }}
+                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {loadingPendAnexosId === p.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Paperclip className="w-3 h-3" />
+                )}
+                <span>Ver anexos</span>
+              </button>
+            </div>
+          ) : null}
           {p.concluida && p.obsConclusao && (
             <div className="mt-2 text-xs text-muted-foreground bg-background p-2 rounded-md border border-border/50">
               <strong>Obs da Conclusão:</strong> {p.obsConclusao}

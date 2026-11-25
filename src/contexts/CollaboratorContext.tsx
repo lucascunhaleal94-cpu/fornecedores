@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Collaborator, Pendency } from '@/types';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { Collaborator, Pendency, ProjectAttachment } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { getCachedData, setCachedData, FORCE_SYNC_EVENT } from '@/lib/localCache';
+
+const CACHE_KEY_COLABS = 'collaborators_v1';
+const CACHE_KEY_PENDS = 'pendencies_meta_v1';
 
 interface CollaboratorContextType {
   collaborators: Collaborator[];
@@ -15,26 +19,92 @@ interface CollaboratorContextType {
   addPendency: (pendency: Omit<Pendency, 'id' | 'createdAt' | 'updatedAt'>) => Promise<{ success: boolean }>;
   updatePendency: (id: string, updates: Partial<Pendency>) => Promise<void>;
   deletePendency: (id: string) => Promise<void>;
+  loadPendencyAttachments: (pendencyId: string) => Promise<ProjectAttachment[]>;
+  loadedPendencyAttachmentIds: Set<string>;
 }
 
 const CollaboratorContext = createContext<CollaboratorContextType | undefined>(undefined);
 
+const stripPendencyAnexos = (items: Pendency[]): Pendency[] =>
+  items.map(({ anexos, ...rest }) => ({ ...rest, anexos: [] }));
+
 export function CollaboratorProvider({ children }: { children: React.ReactNode }) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [pendencies, setPendencies] = useState<Pendency[]>([]);
+  const [loadedPendencyAttachmentIds, setLoadedPendencyAttachmentIds] = useState<Set<string>>(new Set());
+  const loadedRef = useRef<Set<string>>(new Set());
 
-  const fetchData = async () => {
-    const [{ data: colabData }, { data: pendData }] = await Promise.all([
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const [cachedColabs, cachedPends] = await Promise.all([
+        getCachedData<Collaborator[]>(CACHE_KEY_COLABS),
+        getCachedData<Pendency[]>(CACHE_KEY_PENDS),
+      ]);
+      if (cachedColabs) setCollaborators(cachedColabs.data);
+      if (cachedPends) setPendencies(cachedPends.data);
+      if (cachedColabs?.isFresh && cachedPends?.isFresh) return;
+    }
+
+    // Exclui a coluna pesada `anexos` (Base64) da carga inicial das pendências
+    const [{ data: colabData }, pendRes] = await Promise.all([
       supabase.from('collaborators').select('*'),
-      supabase.from('pendencies').select('*'),
+      supabase
+        .from('pendencies')
+        .select('id, fornecedorId, colaboradoresIds, descricao, prazo, urgencia, concluida, dataConclusao, obsConclusao, observacao, interacoes, createdAt, updatedAt'),
     ]);
-    if (colabData) setCollaborators(colabData as Collaborator[]);
-    if (pendData) setPendencies(pendData as Pendency[]);
-  };
+
+    let pendData: any[] | null = pendRes.data;
+    if (pendRes.error) {
+      const retry = await supabase.from('pendencies').select('*');
+      pendData = retry.data;
+    }
+
+    if (colabData) {
+      setCollaborators(colabData as Collaborator[]);
+      await setCachedData(CACHE_KEY_COLABS, colabData);
+    }
+    if (pendData) {
+      const normalized = (pendData as Pendency[]).map(p => ({ ...p, anexos: p.anexos || [] }));
+      loadedRef.current = new Set();
+      setLoadedPendencyAttachmentIds(new Set());
+      setPendencies(normalized);
+      await setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(normalized));
+    }
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(false);
+    const onForceSync = () => fetchData(true);
+    window.addEventListener(FORCE_SYNC_EVENT, onForceSync);
+    return () => window.removeEventListener(FORCE_SYNC_EVENT, onForceSync);
+  }, [fetchData]);
+
+  const loadPendencyAttachments = useCallback(async (pendencyId: string): Promise<ProjectAttachment[]> => {
+    const existing = pendencies.find(p => p.id === pendencyId);
+    if (loadedRef.current.has(pendencyId) && existing) {
+      return existing.anexos || [];
+    }
+
+    const { data, error } = await supabase
+      .from('pendencies')
+      .select('anexos')
+      .eq('id', pendencyId)
+      .single();
+
+    if (error || !data) {
+      console.error('Erro ao carregar anexos da pendência:', error);
+      return existing?.anexos || [];
+    }
+
+    const fullAnexos = ((data as any).anexos || []) as ProjectAttachment[];
+    loadedRef.current.add(pendencyId);
+    setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
+    setPendencies(prev =>
+      prev.map(p => (p.id === pendencyId ? { ...p, anexos: fullAnexos } : p))
+    );
+
+    return fullAnexos;
+  }, [pendencies]);
 
   const addCollaborator = async (colab: Omit<Collaborator, 'id' | 'createdAt' | 'updatedAt'>) => {
     const existingIndex = collaborators.findIndex(c => c.codigo === colab.codigo);
@@ -43,12 +113,11 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
     if (existingIndex !== -1) {
       const targetId = collaborators[existingIndex].id;
       const updates = { ...colab, updatedAt: now };
-      
-      setCollaborators(prev => {
-        const next = [...prev];
-        next[existingIndex] = { ...next[existingIndex], ...updates };
-        return next;
-      });
+
+      const next = [...collaborators];
+      next[existingIndex] = { ...next[existingIndex], ...updates };
+      setCollaborators(next);
+      setCachedData(CACHE_KEY_COLABS, next);
 
       await supabase.from('collaborators').update(updates).eq('id', targetId);
       return { success: true, updated: true };
@@ -60,8 +129,7 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
       createdAt: now,
       updatedAt: now,
     };
-    
-    // Preparar dados para o banco adicionando defaults obrigatórios
+
     const dbDoc: any = {
       ...newDoc,
       contratacao: (colab as any).contratacao || 'CLT',
@@ -76,21 +144,25 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
       toast.error("Erro inserindo colaborador: " + error.message);
       return { success: false, reason: error.message };
     }
-    
-    // Só atualiza o estado se o insert foi sucesso
-    setCollaborators(prev => [newDoc, ...prev]);
+
+    const next = [newDoc, ...collaborators];
+    setCollaborators(next);
+    setCachedData(CACHE_KEY_COLABS, next);
     return { success: true };
   };
 
   const updateCollaborator = async (id: string, updates: Partial<Collaborator>) => {
     const now = new Date().toISOString();
-    setCollaborators(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: now } : c));
-    
+    const next = collaborators.map(c => c.id === id ? { ...c, ...updates, updatedAt: now } : c);
+    setCollaborators(next);
+    setCachedData(CACHE_KEY_COLABS, next);
     await supabase.from('collaborators').update({ ...updates, updatedAt: now }).eq('id', id);
   };
 
   const deleteCollaborator = async (id: string) => {
-    setCollaborators(prev => prev.filter(c => c.id !== id));
+    const next = collaborators.filter(c => c.id !== id);
+    setCollaborators(next);
+    setCachedData(CACHE_KEY_COLABS, next);
     await supabase.from('collaborators').delete().eq('id', id);
   };
 
@@ -100,60 +172,58 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
 
     const newDocs: Collaborator[] = [];
     const updateDocs: Collaborator[] = [];
+    let nextColabs = [...collaborators];
 
-    setCollaborators(prev => {
-      let nextColabs = [...prev];
-      
-      colabsToImport.forEach((c, i) => {
-        const existingIndex = nextColabs.findIndex(existing => existing.codigo === c.codigo);
-        
-        if (existingIndex !== -1) {
-          duplicatedCount++;
-          const up = { ...nextColabs[existingIndex], ...c, updatedAt: now };
-          nextColabs[existingIndex] = up;
-          updateDocs.push(up);
-        } else {
-          const newDoc: Collaborator = {
-            ...c,
-            id: 'colab-imp-' + Date.now().toString() + '-' + i,
-            createdAt: now,
-            updatedAt: now
-          };
-          newDocs.push(newDoc);
-          nextColabs.unshift(newDoc);
-        }
-      });
-      return nextColabs;
+    colabsToImport.forEach((c, i) => {
+      const existingIndex = nextColabs.findIndex(existing => existing.codigo === c.codigo);
+
+      if (existingIndex !== -1) {
+        duplicatedCount++;
+        const up = { ...nextColabs[existingIndex], ...c, updatedAt: now };
+        nextColabs[existingIndex] = up;
+        updateDocs.push(up);
+      } else {
+        const newDoc: Collaborator = {
+          ...c,
+          id: 'colab-imp-' + Date.now().toString() + '-' + i,
+          createdAt: now,
+          updatedAt: now
+        };
+        newDocs.push(newDoc);
+        nextColabs.unshift(newDoc);
+      }
     });
+
+    setCollaborators(nextColabs);
+    setCachedData(CACHE_KEY_COLABS, nextColabs);
 
     if (newDocs.length > 0) {
       const chunkSize = 1000;
       for (let i = 0; i < newDocs.length; i += chunkSize) {
-         const chunk = newDocs.slice(i, i + chunkSize).map((doc: any) => {
-           return {
-             ...doc,
-             contratacao: doc.contratacao || 'CLT',
-             salario: doc.salario || 0,
-             encargos: doc.encargos || 0,
-             total: doc.total || 0,
-             valorHora: doc.valorHora || 0
-           };
-         });
-         await supabase.from('collaborators').insert(chunk);
+        const chunk = newDocs.slice(i, i + chunkSize).map((doc: any) => ({
+          ...doc,
+          contratacao: doc.contratacao || 'CLT',
+          salario: doc.salario || 0,
+          encargos: doc.encargos || 0,
+          total: doc.total || 0,
+          valorHora: doc.valorHora || 0
+        }));
+        await supabase.from('collaborators').insert(chunk);
       }
     }
 
     if (updateDocs.length > 0) {
-       for (const doc of updateDocs) {
-          await supabase.from('collaborators').update({ ...doc, id: undefined }).eq('id', doc.id);
-       }
+      for (const doc of updateDocs) {
+        await supabase.from('collaborators').update({ ...doc, id: undefined }).eq('id', doc.id);
+      }
     }
-    
+
     return { successCount: colabsToImport.length - duplicatedCount, duplicatedCount };
   };
 
   const deleteAllCollaborators = async () => {
     setCollaborators([]);
+    setCachedData(CACHE_KEY_COLABS, []);
     await supabase.from('collaborators').delete().neq('id', 'non-existent');
   };
 
@@ -165,7 +235,12 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
       createdAt: now,
       updatedAt: now,
     };
-    setPendencies(prev => [newDoc, ...prev]);
+    const next = [newDoc, ...pendencies];
+    setPendencies(next);
+    loadedRef.current.add(newDoc.id);
+    setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
+    setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
+
     const { error } = await supabase.from('pendencies').insert([newDoc]);
     if (error) toast.error("Erro inserindo pendência: " + error.message);
     return { success: true };
@@ -173,8 +248,16 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
 
   const updatePendency = async (id: string, updates: Partial<Pendency>) => {
     const now = new Date().toISOString();
-    setPendencies(prev => prev.map(p => p.id === id ? { ...p, ...updates, updatedAt: now } : p));
-    const { error } = await supabase.from('pendencies').update({ ...updates, updatedAt: now }).eq('id', id);
+    const next = pendencies.map(p => p.id === id ? { ...p, ...updates, updatedAt: now } : p);
+    setPendencies(next);
+    setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
+
+    const dbUpdates: any = { ...updates, updatedAt: now };
+    if (!('anexos' in updates)) {
+      delete dbUpdates.anexos;
+    }
+
+    const { error } = await supabase.from('pendencies').update(dbUpdates).eq('id', id);
     if (error) {
       console.error('Error updating pendency:', error);
       toast.error('Erro ao atualizar no banco de dados: ' + error.message);
@@ -183,14 +266,18 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
   };
 
   const deletePendency = async (id: string) => {
-    setPendencies(prev => prev.filter(p => p.id !== id));
+    const next = pendencies.filter(p => p.id !== id);
+    setPendencies(next);
+    loadedRef.current.delete(id);
+    setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
+    setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
     await supabase.from('pendencies').delete().eq('id', id);
   };
 
   return (
-    <CollaboratorContext.Provider value={{ 
+    <CollaboratorContext.Provider value={{
       collaborators, addCollaborator, updateCollaborator, deleteCollaborator, importCollaborators, deleteAllCollaborators,
-      pendencies, addPendency, updatePendency, deletePendency
+      pendencies, addPendency, updatePendency, deletePendency, loadPendencyAttachments, loadedPendencyAttachmentIds
     }}>
       {children}
     </CollaboratorContext.Provider>
