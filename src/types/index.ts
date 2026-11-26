@@ -226,6 +226,7 @@ export interface Pendency {
   obsConclusao?: string;
   observacao?: string;
   anexos?: ProjectAttachment[];
+  hasAnexos?: boolean;
   interacoes?: PendencyInteraction[];
   createdAt: string;
   updatedAt: string;

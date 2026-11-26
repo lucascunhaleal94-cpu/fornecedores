@@ -339,7 +339,7 @@ export default function CollaboratorsPage() {
       setPendFornecedorId(pend.fornecedorId || '');
       setPendObservacao(pend.observacao || '');
       setPendAnexos(pend.anexos || []);
-      if (!loadedPendencyAttachmentIds.has(pend.id)) {
+      if (pend.hasAnexos && !loadedPendencyAttachmentIds.has(pend.id)) {
         loadPendencyAttachments(pend.id).then((loaded) => {
           setPendAnexos(loaded);
         });
@@ -579,7 +579,7 @@ export default function CollaboratorsPage() {
                 </a>
               ))}
             </div>
-          ) : !loadedPendencyAttachmentIds.has(p.id) ? (
+          ) : p.hasAnexos && !loadedPendencyAttachmentIds.has(p.id) ? (
             <div className="mt-1.5">
               <button
                 type="button"

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { getCachedData, setCachedData, FORCE_SYNC_EVENT } from '@/lib/localCache';
 
 const CACHE_KEY_COLABS = 'collaborators_v1';
-const CACHE_KEY_PENDS = 'pendencies_meta_v1';
+const CACHE_KEY_PENDS = 'pendencies_meta_v2';
 
 interface CollaboratorContextType {
   collaborators: Collaborator[];
@@ -26,7 +26,11 @@ interface CollaboratorContextType {
 const CollaboratorContext = createContext<CollaboratorContextType | undefined>(undefined);
 
 const stripPendencyAnexos = (items: Pendency[]): Pendency[] =>
-  items.map(({ anexos, ...rest }) => ({ ...rest, anexos: [] }));
+  items.map(({ anexos, hasAnexos, ...rest }) => ({
+    ...rest,
+    anexos: [],
+    hasAnexos: typeof hasAnexos === 'boolean' ? hasAnexos : (anexos?.length || 0) > 0,
+  }));
 
 export function CollaboratorProvider({ children }: { children: React.ReactNode }) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -46,11 +50,16 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
     }
 
     // Exclui a coluna pesada `anexos` (Base64) da carga inicial das pendências
-    const [{ data: colabData }, pendRes] = await Promise.all([
+    // e consulta apenas os IDs das pendências que realmente possuem anexos
+    const [{ data: colabData }, pendRes, pendWithAnexosRes] = await Promise.all([
       supabase.from('collaborators').select('*'),
       supabase
         .from('pendencies')
         .select('id, fornecedorId, colaboradoresIds, descricao, prazo, urgencia, concluida, dataConclusao, obsConclusao, observacao, interacoes, createdAt, updatedAt'),
+      supabase
+        .from('pendencies')
+        .select('id')
+        .not('anexos->0', 'is', null),
     ]);
 
     let pendData: any[] | null = pendRes.data;
@@ -59,12 +68,30 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
       pendData = retry.data;
     }
 
+    let idsWithAnexos: Set<string> | null = null;
+    if (!pendWithAnexosRes.error && pendWithAnexosRes.data) {
+      idsWithAnexos = new Set((pendWithAnexosRes.data as { id: string }[]).map(row => row.id));
+    } else if (pendWithAnexosRes.error) {
+      const fallbackRes = await supabase
+        .from('pendencies')
+        .select('id')
+        .not('anexos', 'is', null)
+        .neq('anexos', '[]');
+      if (!fallbackRes.error && fallbackRes.data) {
+        idsWithAnexos = new Set((fallbackRes.data as { id: string }[]).map(row => row.id));
+      }
+    }
+
     if (colabData) {
       setCollaborators(colabData as Collaborator[]);
       await setCachedData(CACHE_KEY_COLABS, colabData);
     }
     if (pendData) {
-      const normalized = (pendData as Pendency[]).map(p => ({ ...p, anexos: p.anexos || [] }));
+      const normalized = (pendData as Pendency[]).map(p => {
+        const hasLoadedAnexos = Array.isArray(p.anexos) && p.anexos.length > 0;
+        const hasAnexos = hasLoadedAnexos || (idsWithAnexos ? idsWithAnexos.has(p.id) : false);
+        return { ...p, anexos: p.anexos || [], hasAnexos };
+      });
       loadedRef.current = new Set();
       setLoadedPendencyAttachmentIds(new Set());
       setPendencies(normalized);
@@ -99,9 +126,13 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
     const fullAnexos = ((data as any).anexos || []) as ProjectAttachment[];
     loadedRef.current.add(pendencyId);
     setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
-    setPendencies(prev =>
-      prev.map(p => (p.id === pendencyId ? { ...p, anexos: fullAnexos } : p))
-    );
+    setPendencies(prev => {
+      const next = prev.map(p =>
+        p.id === pendencyId ? { ...p, anexos: fullAnexos, hasAnexos: fullAnexos.length > 0 } : p
+      );
+      setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
+      return next;
+    });
 
     return fullAnexos;
   }, [pendencies]);
@@ -229,9 +260,12 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
 
   const addPendency = async (pendency: Omit<Pendency, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
+    const { hasAnexos: _ignored, ...cleanPendency } = pendency;
+    const hasAnexos = (cleanPendency.anexos?.length || 0) > 0;
     const newDoc: Pendency = {
-      ...pendency,
+      ...cleanPendency,
       id: 'pend-' + Date.now().toString(),
+      hasAnexos,
       createdAt: now,
       updatedAt: now,
     };
@@ -241,19 +275,34 @@ export function CollaboratorProvider({ children }: { children: React.ReactNode }
     setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
     setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
 
-    const { error } = await supabase.from('pendencies').insert([newDoc]);
+    const { hasAnexos: _dbIgnored, ...dbDoc } = newDoc;
+    const { error } = await supabase.from('pendencies').insert([dbDoc]);
     if (error) toast.error("Erro inserindo pendência: " + error.message);
     return { success: true };
   };
 
   const updatePendency = async (id: string, updates: Partial<Pendency>) => {
     const now = new Date().toISOString();
-    const next = pendencies.map(p => p.id === id ? { ...p, ...updates, updatedAt: now } : p);
+    const { hasAnexos: _ignored, ...cleanUpdates } = updates;
+    const hasAnexosUpdate = 'anexos' in cleanUpdates;
+    const next = pendencies.map(p => {
+      if (p.id !== id) return p;
+      return {
+        ...p,
+        ...cleanUpdates,
+        hasAnexos: hasAnexosUpdate ? (cleanUpdates.anexos?.length || 0) > 0 : p.hasAnexos,
+        updatedAt: now,
+      };
+    });
     setPendencies(next);
+    if (hasAnexosUpdate) {
+      loadedRef.current.add(id);
+      setLoadedPendencyAttachmentIds(new Set(loadedRef.current));
+    }
     setCachedData(CACHE_KEY_PENDS, stripPendencyAnexos(next));
 
-    const dbUpdates: any = { ...updates, updatedAt: now };
-    if (!('anexos' in updates)) {
+    const dbUpdates: any = { ...cleanUpdates, updatedAt: now };
+    if (!hasAnexosUpdate) {
       delete dbUpdates.anexos;
     }
 
